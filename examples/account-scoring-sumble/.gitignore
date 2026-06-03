@@ -1,0 +1,4 @@
+# Regenerated at runtime — do not commit (large)
+score.csv
+__pycache__/
+*.pyc

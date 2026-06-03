@@ -38,6 +38,14 @@ individual contacts with **people-scoring**.
 > being refined, and doesn't have a written guide yet. `account-scoring` and
 > `whitespace` are stable.
 
+### See it in action
+
+[`examples/account-scoring-sumble`](examples/account-scoring-sumble) is a real,
+runnable app the account-scoring skill produced — `python app.py`, drag sliders,
+click through. The account universe is real public companies; the "gold"
+(customer) flags in it are **fictitious and illustrative**, not anyone's real
+customer list.
+
 ## What you need
 
 - One of: **Claude Code**, **OpenAI Codex CLI**, or **Cursor**.
