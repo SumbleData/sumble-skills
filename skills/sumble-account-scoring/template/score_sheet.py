@@ -234,10 +234,13 @@ def build_score_sheet(app_dir: Path, weights_path: Path | None = None) -> dict[s
         w.writerow(score_fields)
         for i in order:
             slug = rows[i].get(slug_col, "") or ""
+            org_url = rows[i].get("sumble_url") or (f"{base_url}{slug}" if slug else "")
             row = [rank_of[i]] + [rows[i].get(c, "") for c in ident] + [scores[i]]
             row += [contrib[k][i] for k in live]
-            row += [f"{base_url}{slug}" if slug else ""]
-            row += [_sumble_link(base_url, slug, signals[k].get("sumble_link")) for k in link_keys]
+            row += [org_url]
+            # Per-signal links come straight from the API ({column}_link in
+            # data.csv), not a hand-built URL.
+            row += [rows[i].get(f"{signals[k]['column']}_link", "") for k in link_keys]
             w.writerow(row)
     tmp2.replace(score_path)
 

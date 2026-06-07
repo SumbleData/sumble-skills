@@ -62,7 +62,7 @@ RANK_PAGE_CAP = 40  # base cap on filter pages scanned per stratum (scaled to qu
 STRATA_WEIGHTS = {
     "tech": 0.20,
     "project": 0.20,
-    "persona_people": 0.20,
+    "persona_concentration": 0.20,
     "persona_growth": 0.40,
 }
 DEFAULT_MIN_EMPLOYEES = 50
@@ -245,10 +245,19 @@ def _exclude_clause(filters: dict) -> str:
 
 
 def rank_stratum(
-    api_key: str, query: str, order_col: str, want: int, seen: set[int]
+    api_key: str,
+    query: str,
+    order_col: str,
+    want: int,
+    seen: set[int],
+    order_job_function: str | None = None,
 ) -> list[dict]:
     """Paginate a filter query (cheap id/name/url select) collecting up to `want`
-    NEW orgs (id not already in `seen`), ordered by `order_col` DESC."""
+    NEW orgs (id not already in `seen`), ordered by `order_col` DESC.
+
+    `order_job_function` names the job function whose people metric drives the
+    sort — required by the per-persona sorts (`people_concentration`,
+    `people_count_growth_1y`) and ignored by the org-level columns."""
     select = {"attributes": ["id", "name", "url"], "entities": []}
     out: list[dict] = []
     page_cap = max(RANK_PAGE_CAP, (want + PAGE - 1) // PAGE * 4 + 5)
@@ -263,6 +272,8 @@ def rank_stratum(
             "limit": PAGE,
             "offset": page * PAGE,
         }
+        if order_job_function:
+            body["order_by_job_function"] = order_job_function
         resp = post(api_key, body, fatal=False)
         if not resp:
             break
@@ -286,9 +297,9 @@ def rank_stratum(
 def select_candidates_stratified(
     spec: dict, api_key: str, pool: int, exclude_ids: set[int]
 ) -> tuple[list[dict], dict]:
-    """Diversified pool in 4 strata (key tech / project / persona people / persona
-    growth) so it isn't just the biggest orgs. Each stratum dedupes against the CRM
-    and everything chosen before it; all gate on a min-employee floor."""
+    """Diversified pool in 4 strata (key tech / project / persona concentration /
+    persona growth) so it isn't just the biggest orgs. Each stratum dedupes against
+    the CRM and everything chosen before it; all gate on a min-employee floor."""
     filters = spec.get("universe_filters", {})
     min_emp = int(filters.get("min_employees", DEFAULT_MIN_EMPLOYEES) or 0)
     gate = _emp_gate(min_emp)
@@ -305,17 +316,23 @@ def select_candidates_stratified(
 
     q_tech = round(STRATA_WEIGHTS["tech"] * pool)
     q_proj = round(STRATA_WEIGHTS["project"] * pool)
-    q_ppl = round(STRATA_WEIGHTS["persona_people"] * pool)
-    q_growth = pool - q_tech - q_proj - q_ppl
+    q_conc = round(STRATA_WEIGHTS["persona_concentration"] * pool)
+    q_growth = pool - q_tech - q_proj - q_conc
 
     seen = set(exclude_ids)  # never pick CRM orgs or repeats
     composition: dict = {"strata": [], "min_employees": min_emp}
     chosen: list[dict] = []
 
-    def take(label: str, query: str, order_col: str, want: int) -> None:
+    def take(
+        label: str,
+        query: str,
+        order_col: str,
+        want: int,
+        order_job_function: str | None = None,
+    ) -> None:
         if want <= 0 or not query:
             return
-        picked = rank_stratum(api_key, query, order_col, want, seen)
+        picked = rank_stratum(api_key, query, order_col, want, seen, order_job_function)
         chosen.extend(picked)
         composition["strata"].append(
             {"stratum": label, "order_by": order_col, "wanted": want, "got": len(picked)}
@@ -331,16 +348,25 @@ def select_candidates_stratified(
              _and(_project_clause(key_projects), gate, excl),
              "jobs_count", q_proj)
     if key_personas:
-        take("key_persona_people",
-             _and(f"job_function IN {sumble_v6._in_list(key_personas)}", gate, excl),
-             "people_count", q_ppl)
         n = len(key_personas)
-        base = q_growth // n
-        rem = q_growth - base * n
-        for i, name in enumerate(key_personas):
-            take(f"key_persona_growth:{name}",
-                 _and(f"job_function EQ {sumble_v6._q(name)}", gate, excl),
-                 "jobs_count_growth_6mo", base + (1 if i < rem else 0))
+
+        def split_take(prefix: str, total: int, order_col: str) -> None:
+            # Per-persona sorts require order_by_job_function, so split the quota
+            # across the key personas (remainder to the first few) and order each
+            # by that persona's own people metric.
+            base, rem = divmod(total, n)
+            for i, name in enumerate(key_personas):
+                take(f"{prefix}:{name}",
+                     _and(f"job_function EQ {sumble_v6._q(name)}", gate, excl),
+                     order_col, base + (1 if i < rem else 0),
+                     order_job_function=name)
+
+        # "Dense in ICP personas" = size-neutral concentration; "growing those
+        # personas fastest" = YoY people growth. Both are true per-persona metrics
+        # now (v6 endpoint), no longer proxied by org-total people_count /
+        # jobs_count_growth_6mo.
+        split_take("key_persona_concentration", q_conc, "people_concentration")
+        split_take("key_persona_growth", q_growth, "people_count_growth_1y")
 
     composition["total_selected"] = len(chosen)
     composition["pool_target"] = pool

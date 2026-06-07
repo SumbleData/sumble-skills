@@ -1028,3 +1028,18 @@ input[type="range"]:focus::-moz-range-thumb {
 .multiplier-row input[type="range"]:focus::-moz-range-thumb {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
 }
+
+/* Fictitious-example demo banner */
+.demo-banner {
+  background: #fef3c7;
+  color: #78350f;
+  border-bottom: 1px solid #f59e0b;
+  padding: 8px 20px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+.demo-banner strong {
+  color: #92400e;
+  font-weight: 700;
+}

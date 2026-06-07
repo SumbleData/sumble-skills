@@ -17,6 +17,11 @@ Policy constants are baked into the scripts, not chosen per run.
   (Branch B, no CRM). Writes `_raw/responses/resp_*.json` + `_raw/fetch_index.json`.
   Needs a Sumble API key (run `python set_api_key.py` once, or
   `export SUMBLE_API_KEY=...`, or `--env-file`).
+- **`lookup.py`** — Stage 2a name resolution via the v6 lookup endpoints
+  (`/technologies/lookup`, `/projects/lookup`, `/jobs/title-lookup`): resolves
+  technology / project / job-function names to canonical slugs/names so the
+  interview no longer needs `RunSqlQuery` for that (the tech-category roll-up
+  still does). Needs a Sumble API key.
 - **`set_api_key.py`** — interactive prompt that saves the key to
   `~/.config/sumble/api_key` (0600); `fetch_data.py` / `score_accounts.py`
   read it automatically.

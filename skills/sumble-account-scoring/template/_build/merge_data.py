@@ -275,14 +275,14 @@ def main() -> None:
     gold_rows = [r for r in all_rows if r["is_icp_gold"]]
     field_order = list(all_rows[0].keys())
 
+    # Calibration is over the org's Sumble tags + the professional_services
+    # attribute only — other industries are not synthesized into tags, so there's
+    # no per-industry gold-lift pass.
     audit, multipliers_defaults = calibrate(all_rows, gold_rows)
-    industry_audit, industry_mults = calibrate_industries(all_rows, gold_rows)
-    multipliers_defaults = multipliers_defaults + industry_mults
     (raw / "_calibration_audit.json").write_text(
         json.dumps(
             {
                 "attrs": audit,
-                "industries": industry_audit,
                 "multipliers_defaults": multipliers_defaults,
             },
             indent=2,

@@ -876,8 +876,7 @@ function renderRankByCategory(scored) {
   const tbody = document.querySelector("#eval-category-table tbody");
   thead.innerHTML = "";
   tbody.innerHTML = "";
-  const heads = ["Category", "N", "Mean", "Median", "Std", "P25", "P75",
-                 "Best", "Worst", "Mean %ile"];
+  const heads = ["Category", "N", "Median", "P25", "Best"];
   const trh = el("tr");
   trh.appendChild(el("th", {}, heads[0]));
   for (const h of heads.slice(1)) trh.appendChild(el("th", { class: "num" }, h));
@@ -892,16 +891,9 @@ function renderRankByCategory(scored) {
       el("td", {}, el("span", { class: "cat-pill cat-" + key }, CATEGORY_LABELS[key] || key)),
     );
     tr.appendChild(el("td", { class: "num" }, fmtInt(s.n)));
-    tr.appendChild(el("td", { class: "num" }, fmtInt(Math.round(s.mean))));
     tr.appendChild(el("td", { class: "num" }, fmtInt(Math.round(s.median))));
-    tr.appendChild(el("td", { class: "num" }, fmtInt(Math.round(s.std))));
     tr.appendChild(el("td", { class: "num" }, fmtInt(Math.round(s.p25))));
-    tr.appendChild(el("td", { class: "num" }, fmtInt(Math.round(s.p75))));
     tr.appendChild(el("td", { class: "num" }, fmtInt(s.best)));
-    tr.appendChild(el("td", { class: "num" }, fmtInt(s.worst)));
-    const pctCell = el("td", { class: "num" }, s.meanPct.toFixed(1) + "%");
-    if (s.meanPct >= 70) pctCell.style.color = "var(--accent, #16A34A)";
-    tr.appendChild(pctCell);
     tbody.appendChild(tr);
   }
 }
@@ -1134,7 +1126,7 @@ function updateBreakdown() {
     meta.appendChild(el("br"));
     meta.appendChild(
       el("a", {
-        href: `${state.config.sumble_url_base}${row[slugCol]}`,
+        href: row.sumble_url || `${state.config.sumble_url_base}${row[slugCol]}`,
         target: "_blank",
         rel: "noopener",
       }, "Open in Sumble →"),
@@ -1155,7 +1147,8 @@ function updateBreakdown() {
     const raw = row[`raw_${key}`] || 0;
     const norm = row[`norm_${key}`] || 0;
     const contrib = weightAbs * norm; // already in 0-100 scaled
-    const href = slug ? buildSumbleLink(sumbleBase, slug, spec.sumble_link) : null;
+    // Per-signal deep link comes straight from the API ({column}_link in data).
+    const href = row[`${spec.column}_link`] || null;
     items.push({
       label: spec.label,
       unit: spec.unit || "",
@@ -1519,11 +1512,12 @@ function downloadCsv() {
   order.forEach((idx, r) => {
     const row = rows[idx];
     const slug = row[slugCol] || "";
-    const orgUrl = slug ? `${base}${slug}` : "";
+    const orgUrl = row.sumble_url || (slug ? `${base}${slug}` : "");
     const leftVals = left.map((c) => esc(c === "sumble_url" ? orgUrl : row[c]));
     const out = [esc(r + 1), ...leftVals, esc(r4(scores[idx]))];
     for (const k of live) out.push(esc(r4(contrib[idx][k])));
-    for (const k of linkKeys) out.push(esc(buildSumbleLink(base, slug, signals[k].sumble_link) || ""));
+    // Per-signal links come from the API ({column}_link), not a hand-built URL.
+    for (const k of linkKeys) out.push(esc(row[`${signals[k].column}_link`] || ""));
     lines.push(out.join(","));
   });
 

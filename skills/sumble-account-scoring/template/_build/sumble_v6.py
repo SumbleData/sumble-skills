@@ -338,15 +338,11 @@ def build_data_row(
     techs = spec["techs"]
     industry = attrs.get("industry") or ""
     tags = list(attrs.get("tags") or [])
+    # Professional Services is the one industry folded into calibration (as its
+    # own tag); all other calibration is over the org's Sumble tags. Other
+    # industries are intentionally NOT synthesized into industry__<slug> tags.
     if industry == "Professional Services" and "professional_services" not in tags:
         tags.append("professional_services")
-    # Synthesize the org's industry as a calibratable tag (`industry__<slug>`) so
-    # the gold-lift calibration can boost/penalize whole industries and the per-tag
-    # widget can tune them. Skip Professional Services — already its own tag above.
-    if industry and industry != "Professional Services":
-        ind_slug = "industry__" + re.sub(r"[^a-z0-9]+", "_", industry.lower()).strip("_")
-        if ind_slug != "industry__" and ind_slug not in tags:
-            tags.append(ind_slug)
     # employee_count is the endpoint's exact integer headcount (band-string
     # midpoint only as a legacy fallback). teams_count / jobs_count are org-total
     # attributes used as concentration denominators and shown as firmographics.
@@ -375,12 +371,18 @@ def build_data_row(
     for item in plan:
         ent = ents.get((item["type"], item["term"]), {})
         row[item["col"]] = round(_f(ent.get(item["metric"])) * item["scale"], 6)
+        # The endpoint returns a canonical deep link beside each metric
+        # ({metric}_url); carry it so links point at the real Sumble listing
+        # rather than a hand-built URL.
+        row[f"{item['col']}_link"] = ent.get(f"{item['metric']}_url") or ""
 
     for p in personas:
         people = _f(row.get(f"{p['slug']}_people"))
         row[f"{p['slug']}_pct"] = (
             round(100.0 * people / employee_count, 3) if employee_count else 0.0
         )
+        # Concentration reuses the persona's /people deep link.
+        row[f"{p['slug']}_pct_link"] = row.get(f"{p['slug']}_people_link", "")
     # Tech team concentration now uses the org-total team count (teams_count
     # attribute), so it's a true share-of-teams and fully API-reproducible.
     for t in techs:
@@ -388,6 +390,8 @@ def build_data_row(
         row[f"{t['slug']}_team_pct"] = (
             round(100.0 * teams / org_teams, 3) if org_teams else 0.0
         )
+        # Concentration reuses the tech's /teams deep link.
+        row[f"{t['slug']}_team_pct_link"] = row.get(f"{t['slug']}_teams_link", "")
 
     # Funding columns (only when requested). total/last-round amounts are scored;
     # type/date are display context. Missing values become 0 / "" so the columns

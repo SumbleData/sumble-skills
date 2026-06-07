@@ -19,11 +19,12 @@ Per-customer customisation lives in config.json; this file stays generic.
 from __future__ import annotations
 
 import csv
+import gzip
 import json
 import os
 import sys
 from datetime import datetime, timezone
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 
@@ -271,6 +272,11 @@ class Handler(SimpleHTTPRequestHandler):
         body = json.dumps(data, default=str).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        # gzip when the client accepts it: the full /api/data sheet can exceed
+        # Cloud Run's ~32 MB HTTP/1 response cap uncompressed (and it's faster).
+        if "gzip" in (self.headers.get("Accept-Encoding") or ""):
+            body = gzip.compress(body)
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
@@ -304,7 +310,7 @@ def main() -> None:
             file=sys.stderr,
         )
     print(f"[people-scoring] http://{host}:{port}/", file=sys.stderr)
-    HTTPServer((host, port), Handler).serve_forever()
+    ThreadingHTTPServer((host, port), Handler).serve_forever()
 
 
 if __name__ == "__main__":

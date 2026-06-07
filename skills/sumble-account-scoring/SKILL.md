@@ -40,17 +40,31 @@ whitespace / both) and the rest of the run adapts.
 ## Required tools
 
 - **Sumble MCP** (for the ICP interview only):
-  - `SearchTechnologies` — resolve tech terms → slugs
+  - `SearchTechnologies` — fuzzy tech discovery when you don't yet have a term
   - `GetMyCompanyProfile` — pre-fill ICP (personas, technologies, projects)
-  - `RunSqlQuery` — **ID/slug resolution only** (Stage 2a: snap job-function
-    display Names and project slugs). NOT used for signal pulls anymore.
+  - `RunSqlQuery` — **only** the Stage 2a tech-category roll-up aggregation
+    (coverage %); it has no endpoint equivalent. Name/slug resolution for
+    technologies, job functions, and projects now uses the v6 lookup endpoints
+    via `_build/lookup.py` (NOT RunSqlQuery).
 - **Sumble public API key** — `SUMBLE_API_KEY` (from sumble.com/account). All
   Stage-2 data now comes from one REST endpoint,
   `POST https://api.sumble.com/v6/organizations` (match + enrich + select in a
   single call). The MCP has no wrapper for it, so the `_build/fetch_data.py`
   script calls it directly.
 
-  **Set the key once.** First tell the user **where to get it: their key is at
+  **Check before prompting — the key is usually already set.** BEFORE you
+  surface the link or ask the user to do anything about the key, check whether it
+  already resolves. Run this one simple command and read the result:
+  ```bash
+  ls ~/.config/sumble/api_key
+  ```
+  If that file exists (or `SUMBLE_API_KEY` is exported in the env), the key is
+  configured — say so in one line and move on. Do NOT prompt for it, and do NOT
+  surface the setup link. Only when the check comes up empty do you fall through
+  to the setup flow below.
+
+  **Set the key once (only if the check above came up empty).** First tell the
+  user **where to get it: their key is at
   https://sumble.com/account (Account → API key)** — surface this link before
   prompting. Then have them run the helper, which prints that link, reads the
   key **without echoing** (so it never lands in the chat transcript or shell
@@ -207,11 +221,12 @@ flags).** The template surfaces these in the toolbar as filter chips
 even when they're not in `multipliers[]`. The chips light up via either
 a `flag` column (above) OR membership in the `tags` column.
 - `tags` (str, pipe-delimited) — the full Sumble tag list for the org,
-  joined with `|` (e.g. `b2b|digital_native|is_ai_native|industry__software`).
-  Source: `organizations.tags` array, plus a synthesized `industry__<slug>` tag
-  (the org's `industry`, except Professional Services which has its own tag) so
-  whole industries are calibratable + tunable in the per-tag widget. Drives the
-  tag-multiplier picker and the attribute-chip filters.
+  joined with `|` (e.g. `b2b|digital_native|is_ai_native`).
+  Source: `organizations.tags` array, plus a synthesized `professional_services`
+  tag when the org's `industry` is Professional Services. Other industries are
+  NOT synthesized into tags — calibration is over the org's Sumble tags (plus
+  professional_services) only. Drives the tag-multiplier picker and the
+  attribute-chip filters.
 - `is_b2b` / `is_b2c` / `is_digital_native` / `is_ai_native` (0/1) —
   convenience flags derived from `tags` (`array_contains(tags, '<slug>')`
   on the canonical Sumble slugs `b2b`, `b2c`, `digital_native`,
@@ -390,14 +405,24 @@ Goal: collect the input required to produce a first version of the score. Please
 
    **Inputs — ask only what the objective needs.** Up to three things, in
    **either shape** (one table with flag columns, OR separate lists — leave both
-   open):
+   open). **Actively encourage the user to share all three of (a), (b), and (c)
+   whenever the objective scores the CRM (modes A/C)** — they are complementary,
+   not redundant: (a) is the *overall universe*, and it's the combination of (a)
+   and (b) that lets the app distinguish **unallocated** accounts (in the
+   universe but not rep-assigned) from **allocated** ones. Without (a) you lose
+   the universe denominator; without (b) every CRM account collapses to one
+   bucket and the unallocated view disappears. Pitch all three together up front
+   rather than settling for whatever the user volunteers first.
    - **(a) Whole CRM universe** — every account in their CRM. The scored set in
      A/C; in B/C used to *exclude* owned accounts from the whitespace pool
      (optional in B — without it, whitespace is just an ICP ranking of Sumble's
-     universe).
+     universe). **The overall universe** — the denominator that (b) is subtracted
+     from to reveal unallocated accounts.
    - **(b) Rep-allocated accounts** — assigned to a rep / owner (e.g.
      `Owner.Name`/`hubspot_owner_id` present, `is_owned`). Only relevant when
-     scoring the CRM (A/C); flags `allocated` vs `unallocated`.
+     scoring the CRM (A/C); flags `allocated` vs `unallocated`. **Pair it with
+     (a)** so the app can surface which universe accounts are *unallocated* —
+     high-fit accounts nobody is working yet.
    - **(c) Closed-won / customers** — closed-won flag (`IsCustomer__c`,
      `lifecyclestage='customer'`, a closed-won `Opportunity`). Used in ALL
      modes for the Evaluation tab + Step 4(a) tag-lift calibration. In B
@@ -467,9 +492,13 @@ Goal: collect the input required to produce a first version of the score. Please
    default `auto`): `auto` uses the caller's Sumble **account score** when their
    domain has one, else a **stratified** pool that avoids size-bias — 20% by key
    technology job posts, 20% by key project job posts, 20% by key persona
-   headcount, 40% by fastest-growing key personas (split evenly across them),
-   each stratum gated on a min-employee floor (`min_employees`, default 50) and
-   deduped against the CRM and prior strata. A candidate whose **parent** is a
+   **concentration** (size-neutral density), 40% by **fastest-growing** key
+   personas (split evenly across them). The persona strata use the v6 endpoint's
+   per-job-function sorts — `order_by_column: people_concentration` and
+   `people_count_growth_1y` with `order_by_job_function: <persona>` — so they
+   rank by the persona's true share / YoY people growth, not org-total proxies.
+   Each stratum is gated on a min-employee floor (`min_employees`, default 50)
+   and deduped against the CRM and prior strata. A candidate whose **parent** is a
    CRM account is land-and-expand: `merge_data.py` relabels it
    `account_category = whitespace_subsidiary` (label "Whitespace (parent in
    CRM)") — **not** a separate tab, just another category in the one sheet that
@@ -522,14 +551,14 @@ Goal: collect the input required to produce a first version of the score. Please
    per source before reading.
 
    The closed-won set (c) drives Step 4(a) tag-lift calibration —
-   boost/penalty defaults for the six attributes (`b2b`, `b2c`,
-   `digital_native`, `is_ai_native`, `it_services`, `professional_services`)
-   **AND for whole industry classifications** (each org's `industry` is
-   synthesized into an `industry__<slug>` tag; the strongest ±8 industries by
-   gold-lift are emitted). These are **applied by default** (written to
-   `tag_multipliers`, not just suggested) — the app opens with them active and
-   tunable. The audit lands in `_raw/_calibration_audit.json`
-   (`attrs` + `industries`).
+   boost/penalty defaults for the six org-tag attributes (`b2b`, `b2c`,
+   `digital_native`, `is_ai_native`, `it_services`, `professional_services`).
+   Calibration is over the org's Sumble tags only; whole industries are **not**
+   synthesized into `industry__<slug>` tags or calibrated (the one exception is
+   `professional_services`, handled as an attribute above). These are **applied
+   by default** (written to `tag_multipliers`, not just suggested) — the app
+   opens with them active and tunable. The audit lands in
+   `_raw/_calibration_audit.json` (`attrs`).
 
    **Agent's role — blend the gold-lift data with knowledge of the world.**
    The gold set is often small, so don't rely on it alone. Combine the
@@ -548,9 +577,12 @@ Goal: collect the input required to produce a first version of the score. Please
    confidence; where the gold set is thin, lean on world knowledge; where they
    CONFLICT (data says penalize an industry the company actively targets),
    surface the conflict to the user rather than silently trusting the small
-   sample. Apply confirmed ones to
+   sample. Apply confirmed **org-tag** boosts/penalties to
    `account-scoring-weights.json.tag_multipliers`
-   (`{tag: "industry__<slug>" | "<attr>", pct, direction}`).
+   (`{tag: "<attr>", pct, direction}`). Industries are no longer calibrated as
+   tags, so act on industry decisions via `universe_filters.exclude_industries`
+   (drop them) instead — `professional_services` is the one industry kept, as an
+   attribute.
 
    **Whitespace hard-exclude recommendations (modes B/C).** Suggest excludes
    **per company, never a fixed list** — see Q4.2's "Universe filters" for the
@@ -575,18 +607,25 @@ JSON into `data.csv`. Confirm `SUMBLE_API_KEY` is set first.
 
 #### Stage 2a — Resolve ICP slugs/names (the only "ID resolution" step)
 
-- **Technologies** → `SearchTechnologies` per term → slug. Keep the user's input
-  string and the resolved slug; show both back before fetching.
-- **Job functions** → the endpoint's `job_function` term is the **display Name**
-  (e.g. `Revenue Operations`, `Sales`). Take the names from
-  `GetMyCompanyProfile`, or canonicalise via a single `RunSqlQuery`:
-  ```sql
-  SELECT id, name, slug FROM job_functions
-  WHERE LOWER(name) IN ('sales','marketing','revenue operations')
-     OR LOWER(slug) IN ('sales','marketing','revenue-operations');
-  ```
-- **Projects** → slug, from the profile or one
-  `RunSqlQuery` on `projects`.
+Resolve every ICP term to its canonical Sumble slug/name in ONE call to the
+lookup helper (it uses the v6 lookup endpoints; needs `SUMBLE_API_KEY`):
+
+```bash
+python <skill_dir>/template/_build/lookup.py --technologies clay,common-room,zoominfo --projects "generative ai,digital transformation" --titles "Machine Learning,AI Engineer,Revenue Operations"
+```
+
+It prints `{technologies, projects, job_functions}`, each item `{input, slug,
+name}` (technologies also list their `categories`). Use:
+- **Technologies** → `slug`. Keep the user's input string + resolved slug; show
+  both back before fetching. (`SearchTechnologies` is still handy for *fuzzy
+  discovery* when you don't yet have a term.)
+- **Job functions** → the endpoint's `job_function` term is the **display
+  `name`** (e.g. `Revenue Operations`, `Sales`). `--titles` maps each
+  job-function name to its canonical function.
+- **Projects** → `slug`.
+
+`GetMyCompanyProfile` still pre-fills the ICP; `lookup.py` just canonicalises
+the names. The only remaining `RunSqlQuery` is the tech-category roll-up below.
 
 ##### Roll individual techs up into predefined categories
 
