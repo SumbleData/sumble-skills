@@ -2,7 +2,7 @@
 
 Most account scores spit out a number. The best ones explain why an account matters and what the first move should be.
 
-*Part 1 of 2.* Part 2 — [Build an account score you can prospect from](02-build-an-account-score-you-can-prospect-from.md).
+*Part 1 of 2.* Part 2 — [A step by step guide to world class account scoring in under two hours](02-build-an-account-score-you-can-prospect-from.md).
 
 
 ## TLDR
@@ -35,6 +35,38 @@ Here's the method, as we've encoded it into a skill that builds this for you.
 
 ## No black-box scores — reps should be able to inspect and act on attribute
 
+Firmographics describe a company at rest. The signals that predict deals describe a company in motion.
+
+Same account (Walmart) scored with 2 different approaches.
+
+**Non-actionable score: 51** — looks precise, but it doesn't tell the rep where to click first:
+
+| Signal | Detected value | Pts |
+| --- | --- | --- |
+| Employee size | 10,074 | +8 |
+| Engineering headcount | 2,840 | +8 |
+| LangChain | 287/365 | +11 |
+| Pinecone | 96/365 | +4 |
+| Qwen | 88/365 | +4 |
+| Buying stage | Decision · 6QA | +9 |
+| Account intent score | 88/100 | +7 |
+
+**Actionable score: 86 — rank #5 of 22,450 in CRM** — the same account scored on real Sumble signals, broken into segments, with every line a deep link into the people, teams, and jobs behind it:
+
+| Segment | Signal | Value |
+| --- | --- | --- |
+| Size | LangChain | 38 teams |
+| Size | Software Engineer | 18,322 people |
+| Size | Pinecone | 22 teams |
+| Size | AI Engineer | 208 people |
+| Size | Qwen | 14 teams |
+| Growth & momentum | GenAI projects (last 3mo) | 9 |
+| Growth & momentum | AI Engineer | +27% YoY |
+| Growth & momentum | Software Engineer | +2% YoY |
+| Concentration | LangChain | 0.5% of teams |
+| Concentration | Software Engineer | 6.2% of staff |
+| Concentration | AI Engineer | 0.07% of staff |
+
 Bias towards attributes that reps can understand and take action on. Some examples: 
 
 - **People** — how many of your target personas work there, what share of the company they make up, and whether that function is *growing*.
@@ -47,7 +79,7 @@ When Sumble provides these attributes we also offer a **deep link**, so the scor
 
 Enterprises have more of everything, so raw counts are just a headcount ranking in disguise. The best models avoid being a proxy for company size. A few fixes keep size from dominating. 
 
-If your sweet spot is small but **fast-growing**, weight the growth signals heavily — above all, growth in your ICP personas. Fast-growing companies cross new scale points often, and each scale point is a moment they outgrow a tool and go looking for a new one, which makes them fertile ground for a modern solution. Lean on growth metrics here and the right accounts pop to the top: a company like Anthropic (~4K employees) can be every bit as compelling as a Walmart (2MM employees). The flip side is just as useful: a company that isn't growing often isn't in pain, because it isn't hitting the limits that trigger a change — so a big, static account can be a worse bet than a smaller one accelerating into your category.
+If your sweet spot is small but **fast-growing**, weight the growth signals heavily — above all, growth in your ICP personas. Fast-growing companies cross new scale points often, and each scale point is a moment they outgrow a tool and go looking for a new one, which makes them fertile ground for a modern solution. Lean on growth metrics here and the right accounts pop to the top: a company like Anthropic (~4K employees) can be every bit as compelling as a Walmart (2MM employees). On the flip side, a company that isn't growing often isn't in pain, because it isn't hitting the limits that trigger a change — so a big, static account can be a worse bet than a smaller one accelerating into your category.
 
 If what matters is that **your solution is central** to the business, weight concentration — a high share of your ICP persona, or of teams running the relevant technologies. If you sell to DevOps engineers, a company where 5% of headcount is a DevOps engineer is a far better fit than one where it's 0.05%: your product sits at the core of how they operate, not off in a corner.
 
@@ -63,7 +95,7 @@ We also recommend a formula that keeps large outlier numbers from dominating the
 - **Growth & momentum** — is now the time? ICP-persona growth and funding momentum (a recent, large round).
 - **Concentration** — how strong is the fit? The size-neutral ratios: what share of the company is your ICP persona, what share of teams run your tech.
 
-Reps get one number to act on; anyone who asks can see the three lenses behind it, weighted ~50/30/20 (size / growth & momentum / concentration) by default and all adjustable.
+Reps get one number to act on; anyone who asks can see the three lenses behind it, weighted ~50/30/20 (size / growth & momentum / concentration) — a default starting point the model then calibrates to your won deals, and fully adjustable.
 
 And the segments are yours to redefine. Rename them, reweight them, or cut them a different way entirely — the most useful alternative being a **business-unit breakdown**: if you sell distinct product lines, give each its own segment (for Oracle, an OCI-fit segment and an Apps-fit segment, each with its own personas and technologies) and read a per-line score inside the same model. 
 

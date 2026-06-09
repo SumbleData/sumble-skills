@@ -301,7 +301,7 @@ without overfitting. The design:
   is derivative-free coordinate ascent (a few sweeps).
 - **Adopt-only-if-it-generalizes.** The fit replaces the defaults only if
   held-out AUC beats the priors by ≥ 0.01; otherwise the priors stand.
-- **Small-gold guard.** Fewer than ~10 gold rows → skip the fit, keep priors.
+- **Small-gold guard.** Fewer than ~20 gold rows → skip the fit, keep priors.
 
 It's a warm start, not an autopilot: the fitted weights are the app's initial
 slider positions, still fully tunable, and the Evaluation tab shows the

@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any
 
 # --- Policy constants (fixed; the agent does not pick these per run) ----------
-MIN_GOLD_FOR_FIT = 40          # below this many gold rows, keep the priors
+MIN_GOLD_FOR_FIT = 20          # below this many gold rows, keep the priors
 MIN_NONGOLD_FOR_FIT = 40       # need a background population to rank against
 N_FOLDS = 5                    # stratified CV folds
 CATEGORY_BAND = 10.0           # a category weight may move +/- this many points
