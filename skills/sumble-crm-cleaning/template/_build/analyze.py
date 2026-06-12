@@ -122,6 +122,34 @@ def load_accounts_meta(raw: Path) -> dict[str, dict]:
     return meta
 
 
+# Optional CRM-footprint columns in `_raw/accounts.csv` — how much CRM history
+# each record carries. Read at analyze time (keyed by crm_account_id), so they
+# can be added or refreshed without re-fetching from Sumble. They feed the
+# merge-survivor suggestion and are shown on duplicate cards.
+COUNT_FIELDS = ("contact_count", "opportunity_count", "activity_count")
+
+
+def load_account_counts(raw: Path) -> dict[str, dict]:
+    path = raw / "accounts.csv"
+    if not path.exists():
+        return {}
+    counts: dict[str, dict] = {}
+    with path.open(newline="") as f:
+        reader = csv.DictReader(f)
+        present = [c for c in COUNT_FIELDS if c in (reader.fieldnames or [])]
+        if not present:
+            return {}
+        for row in reader:
+            aid = (row.get("crm_account_id") or "").strip()
+            if not aid:
+                continue
+            counts[aid] = {
+                c: int(row[c]) if (row.get(c) or "").strip().isdigit() else 0
+                for c in COUNT_FIELDS
+            }
+    return counts
+
+
 def load_org_alternates(raw: Path) -> dict[int, dict]:
     """Optional display-only sidecar `_raw/org_alternates.json`:
     {"<org_id>": {"name_alternates": [...], "url_alternates": [...]}}.
@@ -153,9 +181,11 @@ def build_rows(
     accounts_meta: dict[str, dict] | None = None,
     crm_url_template: str = "",
     org_alternates: dict[int, dict] | None = None,
+    account_counts: dict[str, dict] | None = None,
 ) -> list[dict]:
     accounts_meta = accounts_meta or {}
     org_alternates = org_alternates or {}
+    account_counts = account_counts or {}
     rows: list[dict] = []
     for i, entry in enumerate(index):
         org_id = int(entry["org_id"]) if entry.get("org_id") else None
@@ -187,6 +217,8 @@ def build_rows(
         }
         row.update(dict.fromkeys(META_FIELDS, ""))
         row.update(accounts_meta.get(row["crm_account_id"], {}))
+        row.update(dict.fromkeys(COUNT_FIELDS, 0))
+        row.update(account_counts.get(row["crm_account_id"], {}))
         if attrs:
             row["sumble_name"] = attrs.get("name") or ""
             row["sumble_slug"] = attrs.get("slug") or ""
@@ -273,10 +305,12 @@ def find_duplicates(rows: list[dict]) -> list[dict]:
 
 
 def pick_survivor(member_rows: list[dict]) -> str:
-    """Deterministic survivor suggestion: owned > customer > most-complete >
+    """Deterministic survivor suggestion: owned > customer > biggest CRM
+    footprint (contacts + opportunities + activities) > most-complete >
     oldest created_date > lowest CRM id."""
 
     def sort_key(r: dict):
+        footprint = sum(r.get(c) or 0 for c in COUNT_FIELDS)
         completeness = sum(
             1
             for k in ("crm_domain", "owner", "parent_crm_id", "created_date")
@@ -285,6 +319,7 @@ def pick_survivor(member_rows: list[dict]) -> str:
         return (
             0 if r["owner"] else 1,
             0 if r["is_customer"] else 1,
+            -footprint,
             -completeness,
             r["created_date"] or "9999-12-31",
             r["crm_account_id"],
@@ -305,6 +340,7 @@ def account_payload(r: dict) -> dict:
             "owner",
             "is_customer",
             "created_date",
+            *COUNT_FIELDS,
             "org_id",
             "sumble_name",
             "sumble_domain",
@@ -461,7 +497,8 @@ def write_findings_csv(out_path: Path, findings: dict) -> None:
     cols = [
         "finding_id", "finding_type", "confidence", "evidence", "role",
         "crm_account_id", "crm_url", "crm_name", "crm_domain", "owner",
-        "is_customer", "created_date", *META_FIELDS, "org_id", "sumble_name",
+        "is_customer", "created_date", *COUNT_FIELDS, *META_FIELDS,
+        "org_id", "sumble_name",
         "sumble_domain", "sumble_url", "sumble_name_alternates",
         "sumble_url_alternates", "employee_count_int",
         "headquarters_country", "note",
@@ -545,8 +582,15 @@ def main() -> None:
 
     crm_url_template = (config.get("crm_url_template") or "").strip()
     org_alternates = load_org_alternates(raw)
+    account_counts = load_account_counts(raw)
+    accounts_meta = load_accounts_meta(raw)
     rows = build_rows(
-        index, org_attrs, load_accounts_meta(raw), crm_url_template, org_alternates
+        index,
+        org_attrs,
+        accounts_meta,
+        crm_url_template,
+        org_alternates,
+        account_counts,
     )
     matched = [r for r in rows if r["org_id"]]
     unmatched = [r for r in rows if not r["org_id"]]
@@ -566,6 +610,8 @@ def main() -> None:
         "meta": {
             "company": config.get("company", ""),
             "checks": checks,
+            "has_crm_counts": bool(account_counts),
+            "has_crm_meta": bool(accounts_meta),
             "accounts_total": len(rows),
             "accounts_matched": len(matched),
             "accounts_unmatched": len(unmatched),

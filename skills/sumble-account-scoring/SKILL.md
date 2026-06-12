@@ -232,8 +232,13 @@ referenced from `account-scoring-weights.json` so `app.py` is generic.
 **Account category (always present; blank in pure Branch B):**
 - `account_category` (str) — one of `customer` (closed-won), `allocated`
   (CRM, rep-assigned), `unallocated` (CRM, no rep), `whitespace` (high-fit
-  org NOT in the CRM), `whitespace_subsidiary` (whitespace whose parent IS a
-  CRM account — land-and-expand), or `""` when no CRM was provided. Single
+  org NOT in the CRM; label "Whitespace — new account"), `whitespace_subsidiary`
+  (whitespace whose parent IS a CRM account — land-and-expand; label
+  "Whitespace — parent in CRM"; detected from BOTH `parent_id` and the inverse
+  direction, membership in a CRM org's `subsidiary_ids`, since the endpoint
+  omits `parent_id` on some rows), or `""` when no CRM was provided. The two
+  whitespace kinds are separate filter chips so net-new accounts and
+  parent-in-CRM subsidiaries can be viewed independently. Single
   source of truth: `is_icp_gold = (account_category == "customer")` and
   `in_crm = account_category in {customer, allocated, unallocated}`. The app
   renders a **Category** column + filter chips **only when ≥2 distinct
@@ -247,9 +252,9 @@ referenced from `account-scoring-weights.json` so `app.py` is generic.
 **Penalty flags (always present, 0/1):**
 - `is_it_services` — `array_contains(tags, 'it_services')` (IT services
   shops are typically partners, not customers)
-- `is_professional_services` — `industry = 'Professional Services'`
+- `is_professional_services` — `array_contains(tags, 'professional_services')`
   (consultancies, accounting/legal firms, etc.; same partner-not-customer
-  argument)
+  argument. A native Sumble org tag, exactly like `it_services`.)
 
 **Org attributes (always present, pipe-delimited `tags` column + 0/1
 flags).** The template surfaces these in the toolbar as filter chips
@@ -258,10 +263,10 @@ even when they're not in `multipliers[]`. The chips light up via either
 a `flag` column (above) OR membership in the `tags` column.
 - `tags` (str, pipe-delimited) — the full Sumble tag list for the org,
   joined with `|` (e.g. `b2b|digital_native|is_ai_native`).
-  Source: `organizations.tags` array, plus a synthesized `professional_services`
-  tag when the org's `industry` is Professional Services. Other industries are
-  NOT synthesized into tags — calibration is over the org's Sumble tags (plus
-  professional_services) only. Drives the tag-multiplier picker and the
+  Source: `organizations.tags` array, verbatim — `professional_services` is a
+  native Sumble org tag (no industry-based synthesis; it arrives like
+  `it_services`). Industries are NOT synthesized into tags — calibration is
+  purely over the org's Sumble tags. Drives the tag-multiplier picker and the
   attribute-chip filters.
 - `is_b2b` / `is_b2c` / `is_digital_native` / `is_ai_native` (0/1) —
   convenience flags derived from `tags` (`array_contains(tags, '<slug>')`
@@ -588,9 +593,10 @@ the last time it was shown, re-print the whole updated list, not a diff.
    Each stratum is gated on a min-employee floor (`min_employees`, default 50)
    and deduped against the CRM and prior strata. A candidate whose **parent** is a
    CRM account is land-and-expand: `merge_data.py` relabels it
-   `account_category = whitespace_subsidiary` (label "Whitespace (parent in
-   CRM)") — **not** a separate tab, just another category in the one sheet that
-   the user can filter in or out alongside the rest. In **whitespace-only (B)**,
+   `account_category = whitespace_subsidiary` (label "Whitespace — parent in
+   CRM"; plain whitespace is "Whitespace — new account") — **not** a separate
+   tab, just another category chip in the one sheet, separate from the new-
+   account chip so the user can filter either kind in or out independently. In **whitespace-only (B)**,
    the scored `sample.csv` holds just the closed-won customers (calibration +
    eval) — no CRM scored set.
 
@@ -628,9 +634,11 @@ the last time it was shown, re-print the whole updated list, not a diff.
      rows. NOTE: the endpoint can't filter industries in the rank query, so
      excluded-industry orgs are enriched then dropped (a small credit cost) —
      alternatively, lean on the **auto-applied industry penalties** (Step 4a) to
-     sink them instead of excluding, and tell the user which you chose. The
-     `professional_services` industry has its own switch
-     (`exclude_professional_services_industry: true`).
+     sink them instead of excluding, and tell the user which you chose.
+     `professional_services` is a native org TAG, so the preferred way to
+     exclude it is via `hard_exclude_tags` (free, rank-time); the legacy
+     `exclude_professional_services_industry: true` switch still works
+     (tag-based, applied at merge).
 
    **Free preview (optional).** Before spending credits on a 10K pool, you can
    show the user who'd be in it: `fetch_data.py … --whitespace 10000 --rank-only`
@@ -646,11 +654,11 @@ the last time it was shown, re-print the whole updated list, not a diff.
    The closed-won set (c) drives Step 4(a) tag-lift calibration —
    boost/penalty defaults for the six org-tag attributes (`b2b`, `b2c`,
    `digital_native`, `is_ai_native`, `it_services`, `professional_services`).
-   Calibration is over the org's Sumble tags only; whole industries are **not**
-   synthesized into `industry__<slug>` tags or calibrated (the one exception is
-   `professional_services`, handled as an attribute above). These are **applied
-   by default** (written to `tag_multipliers`, not just suggested) — the app
-   opens with them active and tunable. The audit lands in
+   Calibration is purely over the org's Sumble tags (`professional_services`
+   is one of them, natively); whole industries are **not** synthesized into
+   `industry__<slug>` tags or calibrated. These are **applied by default**
+   (written to `tag_multipliers`, not just suggested) — the app opens with
+   them active and tunable. The audit lands in
    `_raw/_calibration_audit.json` (`attrs`).
 
    **Agent's role — blend the gold-lift data with knowledge of the world.**
@@ -672,10 +680,10 @@ the last time it was shown, re-print the whole updated list, not a diff.
    surface the conflict to the user rather than silently trusting the small
    sample. Apply confirmed **org-tag** boosts/penalties to
    `account-scoring-weights.json.tag_multipliers`
-   (`{tag: "<attr>", pct, direction}`). Industries are no longer calibrated as
+   (`{tag: "<attr>", pct, direction}`). Industries are not calibrated as
    tags, so act on industry decisions via `universe_filters.exclude_industries`
-   (drop them) instead — `professional_services` is the one industry kept, as an
-   attribute.
+   (drop them) instead — `professional_services` needs no special handling:
+   it's a native org tag, calibrated and excludable like any other tag.
 
    **Whitespace hard-exclude recommendations (modes B/C).** Suggest excludes
    **per company, never a fixed list** — see Q4.2's "Universe filters" for the
@@ -927,9 +935,11 @@ same interface (the user brings their OWN API key for whichever they have):
 | `exa` | /answer | ~$5 | cheapest; answer quality below the LLM+search options |
 
 Mechanics (the script handles all of it):
-- Targets only `account_category` starting with `whitespace`, ordered by current
-  rank. **Recommend `--top 2000`** (or the user's working depth) — filtering the
-  tail of 19K rows is wasted spend.
+- Targets `account_category == "whitespace"` (NEW accounts) by default, ordered
+  by current rank — `whitespace_subsidiary` rows (parent already in the CRM) are
+  land-and-expand, not net-new, so postprocessing spend skips them unless
+  `--include-subsidiaries` is passed. **Recommend `--top 2000`** (or the user's
+  working depth) — filtering the tail of 19K rows is wasted spend.
 - Keys (portable — assume nothing about the user's machine). Resolution
   order: `--api-key` → `--key-cmd "<command>"` (stdout is the key; works with
   any secret manager: `gcloud secrets versions access`, `op read`,

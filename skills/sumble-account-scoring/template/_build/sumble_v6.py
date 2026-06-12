@@ -325,9 +325,9 @@ def build_data_row(
     """Common data.csv columns for one matched org from an endpoint response.
 
     Returns None for an unmatched input (empty `attributes`). The caller adds
-    the skill-specific columns (is_icp_gold, list_type, crm_*). The synthetic
-    `professional_services` tag is appended here when industry matches, so the
-    tag-lift calibration treats it like any other tag.
+    the skill-specific columns (is_icp_gold, list_type, crm_*).
+    `professional_services` is a native Sumble org tag (it arrives in
+    `attributes.tags` like `it_services`) — no industry-based synthesis.
     """
     attrs = resp_row.get("attributes") or {}
     org_id = attrs.get("id")
@@ -337,12 +337,10 @@ def build_data_row(
     personas = spec["personas"]
     techs = spec["techs"]
     industry = attrs.get("industry") or ""
+    # Calibration runs purely over the org's Sumble tags — industries are
+    # intentionally NOT synthesized into tags (professional_services included:
+    # it is a native org tag the endpoint returns in attributes.tags).
     tags = list(attrs.get("tags") or [])
-    # Professional Services is the one industry folded into calibration (as its
-    # own tag); all other calibration is over the org's Sumble tags. Other
-    # industries are intentionally NOT synthesized into industry__<slug> tags.
-    if industry == "Professional Services" and "professional_services" not in tags:
-        tags.append("professional_services")
     # employee_count is the endpoint's exact integer headcount (band-string
     # midpoint only as a legacy fallback). teams_count / jobs_count are org-total
     # attributes used as concentration denominators and shown as firmographics.
@@ -361,7 +359,7 @@ def build_data_row(
         "jobs_count": int(_f(attrs.get("jobs_count"))),
         "teams_count": org_teams,
         "is_it_services": 1 if "it_services" in tags else 0,
-        "is_professional_services": 1 if industry == "Professional Services" else 0,
+        "is_professional_services": 1 if "professional_services" in tags else 0,
         "tags": "|".join(tags),
     }
     for slug in ATTR_FLAGS_FROM_TAGS:

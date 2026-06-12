@@ -123,8 +123,10 @@ def _has_tag(row: dict, tag: str) -> bool:
 def passes_universe_filters(row: dict, filters: dict) -> bool:
     """Universe hard-filters applied post-fetch to WHITESPACE candidates only
     (never to the user's own CRM accounts): min employees, HQ-country whitelist,
-    exclude-professional-services-industry, and hard-exclude tags. The rank query
-    already pushes most of these, but this is the guaranteed safety net."""
+    the professional-services switch (now tag-based — professional_services is
+    a native Sumble org tag, so prefer listing it in hard_exclude_tags for
+    free rank-time exclusion), and hard-exclude tags. The rank query already
+    pushes most of these, but this is the guaranteed safety net."""
     if int(row.get("employee_count_int") or 0) < int(filters.get("min_employees", 0) or 0):
         return False
     hq_whitelist = filters.get("hq_country_whitelist") or []
@@ -232,6 +234,19 @@ def main() -> None:
     if crm_path.exists():
         crm_ids = {int(m["org_id"]) for m in json.loads(crm_path.read_text())}
 
+    # Inverse linkage fallback: the endpoint omits `parent_id` on some rows
+    # (observed: whitespace candidates), but CRM rows DO carry
+    # `subsidiary_ids`. Collect every child id of a CRM org so a whitespace
+    # candidate is recognised as a subsidiary from either direction.
+    crm_child_ids: set[int] = set()
+    if crm_ids:
+        for resp_row in resp_orgs:
+            attrs = resp_row.get("attributes") or {}
+            oid = attrs.get("id")
+            if oid is not None and int(oid) in crm_ids:
+                for sid in attrs.get("subsidiary_ids") or []:
+                    crm_child_ids.add(int(sid))
+
     def build_row(resp_row: dict, meta: dict) -> dict | None:
         row = sumble_v6.build_data_row(resp_row, spec, plan)
         if row is None:
@@ -244,8 +259,13 @@ def main() -> None:
         # account_category is the single source of truth: customer / allocated /
         # unallocated / whitespace / whitespace_subsidiary ("" in pure Branch B).
         category = meta.get("account_category") or ""
-        parent_id = (resp_row.get("attributes") or {}).get("parent_id")
-        if category == "whitespace" and parent_id and int(parent_id) in crm_ids:
+        attrs = resp_row.get("attributes") or {}
+        parent_id = attrs.get("parent_id")
+        org_id = attrs.get("id")
+        if category == "whitespace" and (
+            (parent_id and int(parent_id) in crm_ids)
+            or (org_id is not None and int(org_id) in crm_child_ids)
+        ):
             category = "whitespace_subsidiary"
         row["account_category"] = category
         row["is_icp_gold"] = int(category == "customer" or bool(meta.get("is_gold")))
@@ -275,9 +295,9 @@ def main() -> None:
     gold_rows = [r for r in all_rows if r["is_icp_gold"]]
     field_order = list(all_rows[0].keys())
 
-    # Calibration is over the org's Sumble tags + the professional_services
-    # attribute only — other industries are not synthesized into tags, so there's
-    # no per-industry gold-lift pass.
+    # Calibration is purely over the org's Sumble tags (professional_services
+    # is one of them, natively) — industries are not synthesized into tags, so
+    # there's no per-industry gold-lift pass.
     audit, multipliers_defaults = calibrate(all_rows, gold_rows)
     (raw / "_calibration_audit.json").write_text(
         json.dumps(

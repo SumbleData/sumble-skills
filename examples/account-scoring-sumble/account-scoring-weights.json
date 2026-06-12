@@ -48,47 +48,37 @@
     "icp_persona_count": {
       "label": "Icp Persona Count",
       "section": "acv",
-      "default_pct": 34.8214
+      "default_pct": 39.0
     },
     "icp_persona_growth": {
       "label": "Icp Persona Growth",
       "section": "acv",
-      "default_pct": 14.5089
+      "default_pct": 16.25
     },
     "icp_persona_concentration": {
       "label": "Icp Persona Concentration",
       "section": "acv",
-      "default_pct": 8.7054
+      "default_pct": 9.75
     },
     "relevant_tech_team_count": {
       "label": "Relevant Tech Team Count",
       "section": "acv",
-      "default_pct": 21.875
+      "default_pct": 24.5
     },
     "relevant_tech_team_concentration": {
       "label": "Relevant Tech Team Concentration",
       "section": "acv",
-      "default_pct": 9.375
+      "default_pct": 10.5
     },
     "intent_project_tech_count": {
       "label": "Intent Project Tech Count",
       "section": "intent",
-      "default_pct": 46.1538
+      "default_pct": 60.0
     },
     "intent_project_persona_count": {
       "label": "Intent Project Persona Count",
       "section": "intent",
-      "default_pct": 30.7692
-    },
-    "funding": {
-      "label": "Funding (size)",
-      "section": "acv",
-      "default_pct": 10.7143
-    },
-    "funding_momentum": {
-      "label": "Funding momentum",
-      "section": "intent",
-      "default_pct": 23.0769
+      "default_pct": 40.0
     }
   },
   "signals": {
@@ -2120,78 +2110,6 @@
               "endpoint": "POST https://api.sumble.com/v6/organizations",
               "select_attribute": "teams_count",
               "read": "org-total team count (concentration denominator)"
-            }
-          ]
-        }
-      }
-    },
-    "funding_total_raised": {
-      "label": "Total funding raised",
-      "column": "funding_total_raised",
-      "category": "funding",
-      "transform": "log",
-      "default_within": 100.0,
-      "p99": 21.556175,
-      "api_supported": true,
-      "source": {
-        "why": "More capital raised = a bigger budget and a faster hiring ramp \u2014 more interviews to run.",
-        "kind": "sumble_derived",
-        "derivation": {
-          "formula": "funding_total_raised",
-          "inputs": [
-            {
-              "name": "funding_total_raised",
-              "endpoint": "POST https://api.sumble.com/v6/organizations",
-              "select_attribute": "funding_total_raised",
-              "read": "total funding raised across all rounds, whole USD"
-            }
-          ]
-        }
-      }
-    },
-    "funding_days_since_last_round": {
-      "label": "Days since last financing",
-      "column": "funding_days_since_last_round",
-      "category": "funding_momentum",
-      "transform": "recency",
-      "default_within": 50.0,
-      "p99": 3275.0,
-      "api_supported": true,
-      "source": {
-        "why": "A recent financing round means fresh capital and an imminent hiring ramp \u2014 an open buying window. Score decays as the last round ages; never-financed scores 0.",
-        "kind": "sumble_derived",
-        "derivation": {
-          "formula": "days between funding_last_round_date and today, recency-scored (fewer days = higher; none = 0)",
-          "inputs": [
-            {
-              "name": "funding_last_round_date",
-              "endpoint": "POST https://api.sumble.com/v6/organizations",
-              "select_attribute": "funding_last_round_date",
-              "read": "date of the latest funding round (ISO YYYY-MM-DD)"
-            }
-          ]
-        }
-      }
-    },
-    "funding_last_round_raised": {
-      "label": "Latest round size",
-      "column": "funding_last_round_raised",
-      "category": "funding_momentum",
-      "transform": "log",
-      "default_within": 50.0,
-      "p99": 20.723266,
-      "api_supported": true,
-      "source": {
-        "why": "A large most-recent round means fresh capital \u2014 an active hiring/buying window.",
-        "kind": "sumble_derived",
-        "derivation": {
-          "formula": "funding_last_round_raised",
-          "inputs": [
-            {
-              "name": "funding_last_round_raised",
-              "endpoint": "POST https://api.sumble.com/v6/organizations",
-              "select_attribute": "funding_last_round_raised",
-              "read": "amount raised in the latest funding round, whole USD"
             }
           ]
         }

@@ -22,9 +22,9 @@ This skill produces two things:
 All Sumble data comes from the **v6 REST endpoints** via the deterministic
 `_build/` scripts — `POST /v6/organizations` (company match) and
 `POST /v6/people` (people pull + 1P contact resolution, including
-reverse-enrichment by email). **The one exception is skills**: the v6 API has
-no per-person skills attribute, so matched skills come from ONE query on the
-`organizations-duckdb` MCP (Stage 2d). No other SQL.
+reverse-enrichment by email). Skills come from the people endpoint's
+`technologies` attribute (the person's LinkedIn skills normalized to Sumble's
+technology catalog), so there is **no SQL anywhere** in the pipeline.
 
 Follow the stages closely — input (interview) and output should be
 consistent between runs, more deterministic than most skills.
@@ -50,18 +50,11 @@ final weights.
 - **Sumble MCP** (for the ICP interview only):
   - `GetMyCompanyProfile` — pre-fill the ICP (job functions, technologies)
   - `SearchTechnologies` — fuzzy skill discovery when you don't yet have a term
-- **`organizations-duckdb` MCP** (`query`) — **only** the Stage 2d matched-
-  skills query (`people_technologies_by_person_id` + `technologies`); the v6
-  API has no per-person skills attribute. Results cap at 1000 rows — chunk
-  the `person_id IN (…)` list to ≤800 ids per call. **If this MCP isn't
-  available** (it's Sumble-internal), tell the user the skills factor can't
-  be populated and proceed WITHOUT skills: leave `spec.skills` empty so
-  `build_config.py` drops the skills weight and renormalises (jf/seniority
-  become ~45/55).
 - **Sumble public API key** — `SUMBLE_API_KEY` (from sumble.com/account). All
-  Stage-2 people data comes from `POST /v6/people` (match + filter modes) and
-  the org match from `POST /v6/organizations`; `_build/fetch_people.py` calls
-  them directly.
+  Stage-2 people data — including the matched-skills factor, via the
+  `technologies` person attribute — comes from `POST /v6/people` (match +
+  filter modes) and the org match from `POST /v6/organizations`;
+  `_build/fetch_people.py` calls them directly.
 
   **Check before prompting — the key is usually already set.** BEFORE you
   surface the link or ask the user to do anything about the key, check whether
@@ -372,7 +365,7 @@ python3 <skill_dir>/template/_build/fetch_people.py --raw <output_root>/_raw --e
 
 This matches the calibration companies (confirm the org matches with the
 user), probes the people counts (1 credit per org) and prints the credit
-estimate: **`1 + paid-attributes` per returned person — 8/person with the
+estimate: **`1 + paid-attributes` per returned person — 9/person with the
 full attribute set** — plus 20 extra per email-only contact row. Surface the
 estimate and get a go-ahead, then:
 
@@ -386,37 +379,22 @@ cost (the script prints the skipped count otherwise). The script saves
 `_raw/org_matches.json`. Filter-mode pages are 200 people; match-mode
 batches are 1000 (25 for email-only rows) — all handled internally.
 
-#### 2d — Matched skills (the one non-API step)
+#### 2d — Merge
+
+If 1P signals were connected, first write `_raw/signals.csv` (`person_id`
+and/or `linkedin_url` + one raw column per signal) — `merge_data.py` computes
+the p99 log-saturation norms. Then:
 
 ```bash
 python3 <skill_dir>/template/_build/merge_data.py --raw <output_root>/_raw
 ```
 
-Run merge ONCE first (it warns that skills are missing) to produce
-`data.csv`, then read its `person_id` column with your file tools and run the
-skills query on the **`organizations-duckdb` MCP** (chunk to ≤800 person_ids
-per call — the MCP caps at 1000 rows):
-
-```sql
-SELECT pt.person_id,
-       COUNT(DISTINCT t.slug) AS skill_count,
-       STRING_AGG(DISTINCT t.slug, ',') AS matched_skills
-FROM people_technologies_by_person_id pt
-JOIN technologies t ON t.id = pt.technology_id
-WHERE t.slug IN ('clay', 'zoominfo' /* ICP skill slugs */)
-  AND pt.person_id IN (/* ≤800 person_ids per chunk */)
-GROUP BY pt.person_id;
-```
-
-Write the combined result to `_raw/skills.csv`
-(`person_id,skill_count,matched_skills`) with your agent's file tool (write a
-small helper `.py` if shaping is needed — no heredocs), then re-run the same
-`merge_data.py` command. Only people WITH an ICP skill come back; everyone
-else gets 0/''. If the user's ICP has no skills, skip this step entirely.
-
-If 1P signals were connected, also write `_raw/signals.csv` (`person_id`
-and/or `linkedin_url` + one raw column per signal) before the final merge —
-`merge_data.py` computes the p99 log-saturation norms.
+Matched skills need no extra step: each response row carries the
+`technologies` attribute (LinkedIn skills normalized to Sumble's catalog) and
+`merge_data.py` intersects it with `spec.skills` into
+`matched_skills`/`skill_count`. (A `_raw/skills.csv` with
+`person_id,skill_count,matched_skills`, if present, overrides those columns —
+back-compat for older runs.)
 
 **Sanity check** (from `_raw/_merge_report.json` + `data.calibration-info.json`,
 read with file tools): people per calibration company (flag any 0 — usually a
@@ -480,12 +458,12 @@ Once weights are calibrated, score the **entire** lead/CRM universe:
 
 1. **Enrich the full list** with the same pipeline, no 5-company
    restriction: write the full `_raw/contacts.csv` (all CRM people), run
-   `fetch_people.py --raw <prod_raw> --lean` (5 credits/person instead of 8;
-   match-mode batches of 1000 handle tens of thousands of rows), re-run the
-   Stage 2d skills query over the full person_id list (chunked), then
+   `fetch_people.py --raw <prod_raw> --lean` (6 credits/person instead of 9;
+   match-mode batches of 1000 handle tens of thousands of rows; skills come
+   back on every row via the `technologies` attribute), then
    `merge_data.py` → `leads_enriched.csv` (rename/copy the produced
    data.csv). **Surface the credit estimate first** (`--estimate-only`) —
-   a 30K-contact CRM at 5 credits/person is ~150K credits; for
+   a 30K-contact CRM at 6 credits/person is ~180K credits; for
    Sumble-internal runs the free internal route (DuckDB
    `sumble_people_info`) is the cheaper alternative — offer both.
 2. **Score it** (stdlib, no browser, no row cap):

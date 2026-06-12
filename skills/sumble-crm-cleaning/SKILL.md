@@ -170,6 +170,14 @@ the details.
    - **`owner`** + **`is_customer`** — drive the merge-survivor suggestion
      (owned and customer records win).
    - **`created_date`** — survivor tiebreak (older record wins).
+   - **`contact_count`**, **`opportunity_count`**, **`activity_count`** — the
+     account's CRM footprint (how many contacts, opportunities, and logged
+     activities hang off each record). Shown on every duplicate card and used
+     to pick the survivor: when two records are the same company, the one
+     carrying the relationship history is almost always the keeper. Cheap to
+     pull (one aggregate query per object in Salesforce/HubSpot) and the
+     single best primary-record signal — read at analyze time, so they can be
+     added later without re-fetching.
 
    Print the full proposed column mapping (CRM field → `accounts.csv` column)
    and get one yes/edit confirmation. Then pull the full list and write
@@ -254,7 +262,6 @@ cp <skill_dir>/template/README.md <output_root>/README.md
 cp <skill_dir>/template/static/index.html <output_root>/static/index.html
 cp <skill_dir>/template/static/app.js     <output_root>/static/app.js
 cp <skill_dir>/template/static/style.css  <output_root>/static/style.css
-cp <skill_dir>/template/static/logo.svg   <output_root>/static/logo.svg
 cp <skill_dir>/template/static/favicon.svg <output_root>/static/favicon.svg
 ```
 

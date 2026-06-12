@@ -374,11 +374,22 @@ def load_ranks(out_dir: Path) -> dict[str, int]:
 
 
 def select_targets(
-    rows: list[dict[str, str]], ranks: dict[str, int], top: int | None
+    rows: list[dict[str, str]],
+    ranks: dict[str, int],
+    top: int | None,
+    include_subsidiaries: bool = False,
 ) -> list[dict[str, str]]:
-    ws = [
-        r for r in rows if (r.get("account_category") or "").startswith("whitespace")
-    ]
+    # Default to NEW accounts only: `whitespace_subsidiary` rows (parent
+    # already in the CRM) are land-and-expand, not net-new, so postprocessing
+    # spend goes to the new logos unless --include-subsidiaries is passed.
+    if include_subsidiaries:
+        ws = [
+            r
+            for r in rows
+            if (r.get("account_category") or "").startswith("whitespace")
+        ]
+    else:
+        ws = [r for r in rows if (r.get("account_category") or "") == "whitespace"]
     ws.sort(key=lambda r: ranks.get(r.get("org_id", ""), 10**9))
     return ws[:top] if top else ws
 
@@ -523,6 +534,12 @@ def main() -> None:
     parser.add_argument("--prompt-file", default=None, help="ICP prompt (llm mode)")
     parser.add_argument("--rules", default=None, help="rules JSON (criteria mode)")
     parser.add_argument("--top", type=int, default=None, help="only top-N by rank")
+    parser.add_argument(
+        "--include-subsidiaries",
+        action="store_true",
+        help="also filter whitespace_subsidiary rows (parent already in CRM); "
+        "default targets new accounts only",
+    )
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--estimate-only", action="store_true")
     parser.add_argument("--yes", action="store_true", help="skip the confirm prompt")
@@ -540,7 +557,9 @@ def main() -> None:
     checkpoint = raw / "ws_filter_results.jsonl"
 
     rows, fieldnames = load_rows(out_dir)
-    targets = select_targets(rows, load_ranks(out_dir), args.top)
+    targets = select_targets(
+        rows, load_ranks(out_dir), args.top, args.include_subsidiaries
+    )
     if not targets:
         sys.exit("No whitespace rows found in data.csv — nothing to filter.")
 

@@ -91,7 +91,10 @@ entry whose `column` points at the existing data.csv column with
 `universe_filters` bounds the whitespace pool (modes B/C). `min_employees`,
 `hq_country_whitelist`, and `hard_exclude_tags` are pushed into the free rank
 query; `exclude_industries` (display names) + `exclude_professional_services_industry`
-are guaranteed post-fetch drops in `merge_data.py`. **`exclude_industries` is
+are guaranteed post-fetch drops in `merge_data.py`. `professional_services` is a
+native org tag, so preferring `hard_exclude_tags: ["professional_services"]`
+excludes it at rank time for free; the legacy switch (now tag-based) remains as
+a post-fetch backstop. **`exclude_industries` is
 derived per company** by the agent (gold-set absence + knowledge of the
 company), NOT a fixed default — the example values are illustrative only.
 

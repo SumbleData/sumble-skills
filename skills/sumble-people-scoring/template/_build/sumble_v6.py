@@ -156,6 +156,8 @@ def post(
 
 # Full attribute set for calibration pulls. `name` is free; every other listed
 # attribute costs 1 credit per returned person on top of the 1-credit base.
+# `technologies` is the person's LinkedIn skills normalized to Sumble's
+# technology catalog — the source of the matched-skills factor.
 PERSON_ATTRIBUTES = [
     "name",
     "linkedin_url",
@@ -165,17 +167,19 @@ PERSON_ATTRIBUTES = [
     "location",
     "country",
     "current_employer",
+    "technologies",
 ]
 
 # Lean set for large production runs: only what the score + joins need
-# (jf/level to score, linkedin_url to join, current_employer for the account
-# factor). Saves 3 credits per person vs the full set.
+# (jf/level/technologies to score, linkedin_url to join, current_employer for
+# the account factor). Saves 3 credits per person vs the full set.
 PERSON_ATTRIBUTES_LEAN = [
     "name",
     "linkedin_url",
     "job_function",
     "job_level",
     "current_employer",
+    "technologies",
 ]
 
 _FREE_ATTRIBUTES = {"name"}
@@ -290,13 +294,19 @@ def slugify(name: str | None) -> str:
     return s.strip("-")
 
 
-def build_person_row(resp_row: dict, jf_slug_by_name: dict[str, str]) -> dict | None:
+def build_person_row(
+    resp_row: dict,
+    jf_slug_by_name: dict[str, str],
+    icp_skill_slugs: set[str] | None = None,
+) -> dict | None:
     """Flatten one matched person from a /v6/people response into the common
     data.csv columns. Returns None for an unmatched row (no person_id).
 
     `jf_slug_by_name` maps ICP job-function display names to their canonical
     slugs (from spec.json); other functions fall back to `slugify(name)`.
-    The caller adds flags (is_crm_contact / is_icp_gold), skills, account
+    `icp_skill_slugs` filters the person's `technologies` attribute (LinkedIn
+    skills normalized to Sumble's catalog) down to the matched-skills factor
+    columns. The caller adds flags (is_crm_contact / is_icp_gold), account
     columns and 1P signal columns.
     """
     person_id = resp_row.get("person_id")
@@ -307,6 +317,11 @@ def build_person_row(resp_row: dict, jf_slug_by_name: dict[str, str]) -> dict | 
     jf_name = attrs.get("job_function") or ""
     level = attrs.get("job_level") or ""
     rank = job_level_rank(level)
+    icp_skill_slugs = icp_skill_slugs or set()
+    person_tech_slugs = [
+        t.get("slug") for t in (attrs.get("technologies") or []) if t.get("slug")
+    ]
+    matched = sorted({s for s in person_tech_slugs if s in icp_skill_slugs})
     return {
         "person_id": int(person_id),
         "name": attrs.get("name") or "",
@@ -323,6 +338,8 @@ def build_person_row(resp_row: dict, jf_slug_by_name: dict[str, str]) -> dict | 
         "job_level": level or "Individual Contributor",
         "job_level_rank": rank,
         "max_job_level_rank": MAX_JOB_LEVEL_RANK,
+        "matched_skills": ",".join(matched),
+        "skill_count": len(matched),
     }
 
 

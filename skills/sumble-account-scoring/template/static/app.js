@@ -66,8 +66,8 @@ const CATEGORY_LABELS = {
   customer: "Customer / gold",
   allocated: "Allocated to rep",
   unallocated: "CRM, unallocated",
-  whitespace: "Whitespace",
-  whitespace_subsidiary: "Whitespace (parent in CRM)",
+  whitespace: "Whitespace — new account",
+  whitespace_subsidiary: "Whitespace — parent in CRM",
   // Pseudo-categories used by the filter chips once the Stage-5 LLM filter
   // has classified whitespace rows: the "Whitespace" chip splits three ways.
   ws_unprocessed: "WS · unprocessed",

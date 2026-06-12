@@ -187,7 +187,7 @@ with `Σ wᵢ = 1`. Defaults the skill ships with:
 
 ### Step 4 — Calibration multipliers (lift over your won deals)
 
-Categorical **org tags** (like `b2b`, `b2c`, `digital_native`, `is_ai_native`, `it_services`, `professional_services`) aren't normalized attributes — they're **multipliers** learned from your gold set (closed-won accounts). Calibration runs over the org's Sumble tags only; whole industries are *not* synthesized into tags and calibrated (the one exception is `professional_services`, handled as a tag). Industries you obviously don't sell to are excluded or penalized during the interview instead. For each tag, compare its prevalence among gold accounts to the broader population:
+Categorical **org tags** (like `b2b`, `b2c`, `digital_native`, `is_ai_native`, `it_services`, `professional_services`) aren't normalized attributes — they're **multipliers** learned from your gold set (closed-won accounts). Calibration runs over the org's Sumble tags only (`professional_services` is itself a native org tag); whole industries are *not* synthesized into tags and calibrated. Industries you obviously don't sell to are excluded or penalized during the interview instead. For each tag, compare its prevalence among gold accounts to the broader population:
 
 ```text
 lift = P(tag | gold) / P(tag | universe)

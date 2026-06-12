@@ -22,8 +22,9 @@ Writes:
   _raw/responses/people_*.json raw endpoint responses (one per page/batch)
   _raw/fetch_index.json        [{file, kind, org_id?}] manifest for merge
 
-Credits: every returned person costs `1 + paid-attributes` (8 with the full
-attribute set, 5 with --lean). Email-only contact rows cost
+Credits: every returned person costs `1 + paid-attributes` (9 with the full
+attribute set, 6 with --lean; both include `technologies`, the source of the
+matched-skills factor). Email-only contact rows cost
 EMAIL_RESOLUTION_CREDITS (20) extra each when they resolve and are SKIPPED
 unless --resolve-emails is passed. Run --estimate-only first: it probes the
 people counts with a free-ish 1-credit-per-org query and prints the credit
@@ -249,7 +250,7 @@ def main() -> None:
     ap.add_argument(
         "--lean",
         action="store_true",
-        help="lean attribute set (5 credits/person instead of 8) — for large "
+        help="lean attribute set (6 credits/person instead of 9) — for large "
         "production pulls; drops job_title/location/country",
     )
     ap.add_argument("--env-file", default=None, help="read SUMBLE_API_KEY from this file")

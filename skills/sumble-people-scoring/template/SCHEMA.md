@@ -24,8 +24,10 @@ detected), `job_level_rank` (0 = IC … 18 = CXO, from the baked map in
 without re-aggregating).
 
 **Skills:** `matched_skills` (comma-separated ICP slugs; empty when none),
-`skill_count` (0 when none). Source: the `organizations-duckdb` MCP query →
-`_raw/skills.csv` (the v6 API has no per-person skills attribute).
+`skill_count` (0 when none). Source: the endpoint's `technologies` attribute
+(LinkedIn skills normalized to Sumble's catalog) intersected with
+`spec.skills` at merge time; an optional `_raw/skills.csv` overrides
+(back-compat).
 
 **First-party flags (always present, default 0):**
 - `is_crm_contact` — resolved from the uploaded CRM contact/lead list.

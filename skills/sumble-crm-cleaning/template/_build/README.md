@@ -22,6 +22,13 @@ Three scripts, run in order, all taking `--raw <output_root>/_raw`:
 | `owner` | no | rep/owner name or id; drives the survivor suggestion |
 | `is_customer` | no | 1/true for customers; drives the survivor suggestion |
 | `created_date` | no | ISO date; tiebreak for the survivor suggestion (older wins) |
+| `contact_count` | no | CRM contacts on the account; drives the survivor suggestion + shown on duplicate cards |
+| `opportunity_count` | no | CRM opportunities on the account; same |
+| `activity_count` | no | CRM activities (tasks + events + calls); same |
+
+The three `*_count` columns are read at **analyze time** (keyed by
+`crm_account_id`), so adding or refreshing them only requires re-running
+`analyze.py` — no re-fetch, no credits.
 
 ## `_raw/accounts_meta.csv` (optional display-only sidecar)
 
@@ -82,8 +89,9 @@ editing it only requires re-running `analyze.py` (no re-fetch, no credits).
 domain or name-similarity matching. Pairs already linked parent↔child in the
 CRM are never duplicate evidence. Clusters with very dissimilar CRM names
 carry a note to check for a parent/subsidiary pair both matching the parent.
-Survivor suggestion order: has owner > is customer > most non-empty fields >
-oldest `created_date` > lowest id.
+Survivor suggestion order: has owner > is customer > biggest CRM footprint
+(`contact_count + opportunity_count + activity_count`) > most non-empty
+fields > oldest `created_date` > lowest id.
 
 ## Parent/subsidiary findings
 

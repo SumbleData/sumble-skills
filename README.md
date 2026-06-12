@@ -27,16 +27,17 @@ and how you trigger it differ.
 | Skill | What it does | Guide |
 |---|---|---|
 | [`sumble-mcp`](skills/sumble-mcp) | Use the **Sumble MCP** itself. Gives agents the tool sequencing, query rules, workflow patterns, and credit guardrails for account research, prospecting, and list-building. | [MCP docs](https://docs.sumble.com/api/mcp) |
-| [`sumble-account-scoring`](skills/sumble-account-scoring) | Score **your own accounts** *and* find **net-new whitespace** — one skill, pick the objective. Interviews you about your ICP, calibrates weights against your closed-won customers, builds a tunable scoring app + portable scorer, and in whitespace mode ranks Sumble's universe by your ICP minus the accounts you already own (subsidiaries of existing accounts flagged land-and-expand). | [Part 1 — the method](articles/01-account-score-should-tell-a-rep-what-to-do.md) · [Part 2 — build it](articles/02-build-an-account-score-you-can-prospect-from.md) |
-| [`sumble-people-scoring`](skills/sumble-people-scoring) 🚧 | Score **people / leads**. Ranks the individual contacts most worth reaching out to, and emits a production scorer for an enriched CRM. | *(work in progress)* |
+| [`sumble-account-scoring`](skills/sumble-account-scoring) | Score **your own accounts** *and* find **net-new whitespace** — one skill, pick the objective. Interviews you about your ICP, calibrates weights against your closed-won customers, builds a tunable scoring app + portable scorer, and in whitespace mode ranks Sumble's universe by your ICP minus the accounts you already own (subsidiaries of existing accounts flagged land-and-expand). | [Part 1 — the method](skills/sumble-account-scoring/articles/01-account-score-should-tell-a-rep-what-to-do.md) · [Part 2 — build it](skills/sumble-account-scoring/articles/02-build-an-account-score-you-can-prospect-from.md) |
+| [`sumble-crm-cleaning`](skills/sumble-crm-cleaning) | Clean **your CRM** against Sumble's org graph. Matches every account to a Sumble organization, surfaces duplicate accounts (same org, two records) and missing or conflicting parent/subsidiary links, and builds a review app where you accept/reject each finding and export the change list. | [The article](skills/sumble-crm-cleaning/articles/01-clean-your-crm-against-the-org-graph.md) |
+| [`sumble-people-scoring`](skills/sumble-people-scoring) 🚧 | Score **people / leads** — both the contacts already in your CRM and the people you've never met at your target accounts. One ranked list per account drives outbound, lead routing, lead prioritization, and campaign audiences; emits a production scorer for an enriched CRM. | [The method & use cases](skills/sumble-people-scoring/articles/01-people-scoring-use-cases.md) |
 
 A common workflow: tune a model on your accounts with **sumble-account-scoring**,
 run it in whitespace mode to surface net-new companies, then prioritize the
 individual contacts with **sumble-people-scoring**.
 
-> 🚧 **`sumble-people-scoring` is a work in progress** — it's usable but still
-> being refined, and doesn't have a written guide yet. `sumble-account-scoring`
-> is stable.
+> 🚧 **`sumble-people-scoring` is still being refined** — the method article is
+> written and the skill is usable end-to-end; the step-by-step build guide is
+> coming. `sumble-account-scoring` is stable.
 
 ### See it in action
 
@@ -47,6 +48,11 @@ runnable app the account-scoring skill produced — `python app.py`, drag slider
 click through. The account universe is real public companies; the "gold"
 (customer) flags in it are **fictitious and illustrative**, not anyone's real
 customer list.
+
+[`examples/crm-cleaning-sumble`](examples/crm-cleaning-sumble) is the
+CRM-cleaning skill run against Sumble's own Salesforce — `python3 app.py`,
+then review real duplicate clusters and hierarchy gaps (owner names and
+customer flags are fictitious).
 
 ## What you need
 
@@ -117,11 +123,25 @@ To score a much larger list once weights are tuned, hand the generated
 
 ## Learn the method
 
-The thinking behind the account-scoring skill (whitespace included) is written up
-as a two-part series in [`articles/`](articles):
+Each skill's written guide lives in an `articles/` folder next to the skill
+itself.
 
-1. [An account score should tell a rep what to do — not just rank accounts](articles/01-account-score-should-tell-a-rep-what-to-do.md)
-2. [Build an account score you can prospect from — in an afternoon](articles/02-build-an-account-score-you-can-prospect-from.md) *(includes the full scoring math and whitespace)*
+The thinking behind the account-scoring skill (whitespace included) is a
+two-part series in
+[`skills/sumble-account-scoring/articles/`](skills/sumble-account-scoring/articles):
+
+1. [An account score should tell a rep what to do — not just rank accounts](skills/sumble-account-scoring/articles/01-account-score-should-tell-a-rep-what-to-do.md)
+2. [Build an account score you can prospect from — in an afternoon](skills/sumble-account-scoring/articles/02-build-an-account-score-you-can-prospect-from.md) *(includes the full scoring math and whitespace)*
+
+The CRM-cleaning method is written up in
+[`skills/sumble-crm-cleaning/articles/`](skills/sumble-crm-cleaning/articles):
+
+1. [Clean your CRM against an org graph](skills/sumble-crm-cleaning/articles/01-clean-your-crm-against-the-org-graph.md)
+
+The people-scoring method and its use cases live in
+[`skills/sumble-people-scoring/articles/`](skills/sumble-people-scoring/articles):
+
+1. [Your lead score only ranks people who already found you](skills/sumble-people-scoring/articles/01-people-scoring-use-cases.md) *(the method, plus the use-case catalog: outbound, routing, prioritization, campaigns, multi-threading, events, job-change plays)*
 
 ## License
 

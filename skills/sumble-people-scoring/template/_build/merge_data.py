@@ -7,9 +7,9 @@ Reads (all under --raw):
   contacts.csv           optional — used to recover is_gold flags + which
                          input rows resolved (paths a/b)
   gold.csv               optional — path-c gold list (every row gold)
-  skills.csv             optional — person_id,skill_count,matched_skills
-                         (written by the agent from the organizations-duckdb
-                         MCP query; the v6 API has no per-person skills)
+  skills.csv             optional OVERRIDE — person_id,skill_count,
+                         matched_skills (normally unnecessary: skills come
+                         from the endpoint's `technologies` attribute)
   account_scores.csv     optional — domain,account_score[,account_rank]
                          (e.g. exported from a sumble-account-scoring run)
   signals.csv            optional — person_id or linkedin_url + one raw column
@@ -67,7 +67,9 @@ def p99_norm(raws: list[float]) -> list[float]:
     ]
 
 
-def load_people(raw: Path, jf_slug_by_name: dict[str, str]) -> tuple[dict, dict]:
+def load_people(
+    raw: Path, jf_slug_by_name: dict[str, str], icp_skill_slugs: set[str]
+) -> tuple[dict, dict]:
     """Parse every response file into {person_id: row}, merging duplicates.
 
     Returns (rows_by_id, meta) where meta carries per-source person_id sets:
@@ -86,7 +88,7 @@ def load_people(raw: Path, jf_slug_by_name: dict[str, str]) -> tuple[dict, dict]
         resp = json.loads((raw / "responses" / entry["file"]).read_text())
         kind = entry["kind"]
         for person in resp.get("people") or []:
-            row = sumble_v6.build_person_row(person, jf_slug_by_name)
+            row = sumble_v6.build_person_row(person, jf_slug_by_name, icp_skill_slugs)
             inp = person.get("input") or {}
             if row is None:
                 if kind in ("contacts", "gold"):
@@ -148,7 +150,8 @@ def main() -> None:
     }
     name_by_org = {m["org_id"]: m.get("name") or "" for m in org_matches}
 
-    rows_by_id, meta = load_people(raw, jf_slug_by_name)
+    icp_skill_slugs = {s["slug"] for s in spec.get("skills") or [] if s.get("slug")}
+    rows_by_id, meta = load_people(raw, jf_slug_by_name, icp_skill_slugs)
     if not rows_by_id:
         sys.exit("[merge] no matched people in the responses — nothing to write.")
 
@@ -166,26 +169,28 @@ def main() -> None:
         if not row.get("org_name"):
             row["org_name"] = name_by_org.get(oid, "")
 
-    # --- Skills (organizations-duckdb MCP -> skills.csv; no API equivalent) ----
+    # --- Skills override (optional) --------------------------------------------
+    # matched_skills/skill_count come from the endpoint's `technologies`
+    # attribute (set in build_person_row). A `_raw/skills.csv`
+    # (person_id,skill_count,matched_skills) OVERRIDES them when present —
+    # back-compat for pre-attribute runs and for responses fetched without
+    # `technologies` in the select.
     skills_path = raw / "skills.csv"
-    have_skills = skills_path.exists()
-    skills_by_id: dict[int, dict] = {}
-    if have_skills:
+    if skills_path.exists():
+        skills_by_id: dict[int, dict] = {}
         for r in _read_csv(skills_path):
             try:
                 skills_by_id[int(_f(r.get("person_id")))] = r
             except (TypeError, ValueError):
                 continue
-    for pid, row in rows_by_id.items():
-        s = skills_by_id.get(pid, {})
-        row["skill_count"] = int(_f(s.get("skill_count")))
-        row["matched_skills"] = s.get("matched_skills") or ""
-    if spec.get("skills") and not have_skills:
-        print(
-            "[merge] WARNING: spec has ICP skills but _raw/skills.csv is missing — "
-            "skill_count is 0 for everyone. Run the organizations-duckdb skills "
-            "query and re-run merge."
-        )
+        hits = 0
+        for pid, row in rows_by_id.items():
+            s = skills_by_id.get(pid)
+            if s is not None:
+                row["skill_count"] = int(_f(s.get("skill_count")))
+                row["matched_skills"] = s.get("matched_skills") or ""
+                hits += 1
+        print(f"[merge] skills.csv override applied to {hits}/{len(rows_by_id)} people.")
 
     # --- Account score (optional; joined on the org match domain) --------------
     acct_path = raw / "account_scores.csv"

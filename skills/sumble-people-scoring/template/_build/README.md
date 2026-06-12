@@ -6,10 +6,9 @@ contact lists, filter mode for Sumble-side pulls). Same `spec.json` + same
 endpoint responses → byte-identical output. Policy constants are baked into
 the scripts, not chosen per run.
 
-**The one non-API input is skills**: the v6 API has no per-person skills
-attribute, so the agent runs ONE query on the `organizations-duckdb` MCP and
-writes the result to `_raw/skills.csv` (see SKILL.md Stage 2d). Everything
-else is REST.
+Skills are API-sourced too: the people endpoint's `technologies` attribute
+(LinkedIn skills normalized to Sumble's catalog) is intersected with
+`spec.skills` at merge time — no SQL anywhere.
 
 ## Files
 
@@ -28,11 +27,13 @@ else is REST.
   contact/gold rows (match mode; email-only rows only with
   `--resolve-emails`). `--estimate-only` probes counts and prints the credit
   estimate without enriching. `--lean` drops display attributes
-  (8 → 5 credits/person) for large production pulls.
+  (9 → 6 credits/person) for large production pulls.
 - **`merge_data.py`** — parse the responses → `data.csv` +
-  `data.calibration-info.json` + `_raw/_merge_report.json`. Joins the optional
-  `skills.csv`, `account_scores.csv` and `signals.csv` (computing the p99
-  log-saturation norms for 1P signals).
+  `data.calibration-info.json` + `_raw/_merge_report.json`. Derives
+  `matched_skills`/`skill_count` from each row's `technologies` attribute ∩
+  `spec.skills`; joins the optional `account_scores.csv` and `signals.csv`
+  (computing the p99 log-saturation norms for 1P signals); an optional
+  `skills.csv` overrides the skill columns (back-compat).
 - **`build_config.py`** — `spec.json` + calibration info → `config.json`
   with the policy-default weights and JF ranges.
 - **`fit_weights.py`** — regularized fit of the factor blend to the gold set
@@ -49,11 +50,10 @@ else is REST.
 3. **Estimate** — `python fetch_people.py --raw <abs>/_raw --estimate-only`;
    surface the credit cost to the user.
 4. **Fetch** — `python fetch_people.py --raw <abs>/_raw`.
-5. **Skills** — run the organizations-duckdb query (SKILL.md Stage 2d), write
-   `_raw/skills.csv`.
-6. **Merge** — `python merge_data.py --raw <abs>/_raw` → `data.csv`.
-7. **Config** — `python build_config.py --raw <abs>/_raw` → `config.json`.
-8. **Fit** — `python fit_weights.py --raw <abs>/_raw` (no-op without ≥20 gold).
+5. **Merge** — `python merge_data.py --raw <abs>/_raw` → `data.csv` (skills
+   included via the `technologies` attribute).
+6. **Config** — `python build_config.py --raw <abs>/_raw` → `config.json`.
+7. **Fit** — `python fit_weights.py --raw <abs>/_raw` (no-op without ≥20 gold).
 
 ## `spec.json` schema
 
@@ -96,8 +96,8 @@ else is REST.
 
 - `contacts.csv` — `contact_id,name,linkedin_url,email,is_gold` (paths a/b).
 - `gold.csv` — same columns, every row gold (path c only).
-- `skills.csv` — `person_id,skill_count,matched_skills` from the
-  organizations-duckdb MCP query.
+- `skills.csv` — optional OVERRIDE (`person_id,skill_count,matched_skills`);
+  normally unnecessary — skills come from the `technologies` attribute.
 - `account_scores.csv` — `domain,account_score[,account_rank]` (also accepts
   `url`/`score`/`rank` headers, so a sumble-account-scoring `score.csv` works
   after column projection).
@@ -119,10 +119,10 @@ else is REST.
 
 ## Credits
 
-- Org match: 1 credit per matched calibration company.
-- People: `1 + paid-attributes` per returned person — **8**/person with the
-  full attribute set, **5**/person with `--lean`.
+- Org match: free (id/name/slug/url attributes only).
+- People: `1 + paid-attributes` per returned person — **9**/person with the
+  full attribute set, **6**/person with `--lean` (both include
+  `technologies`, the matched-skills source).
 - Email-only contact rows: +20 credits each when they resolve (max 25 per
   request); skipped unless `--resolve-emails`.
 - Count probes (`--estimate-only`): 1 credit per org.
-- Skills: free (internal organizations-duckdb MCP).

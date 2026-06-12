@@ -58,5 +58,5 @@ startup, so only `data.csv` + the weights JSON need to ship.
 This is just example output. To build a score against *your* ICP and *your*
 accounts, install the [`account-scoring`](../../skills/account-scoring)
 skill and run it in your coding agent. The method is written up in the
-[articles](../../articles): [Part 1 — the method](../../articles/01-account-score-should-tell-a-rep-what-to-do.md)
-and [Part 2 — build it](../../articles/02-build-an-account-score-you-can-prospect-from.md).
+[articles](../../skills/sumble-account-scoring/articles): [Part 1 — the method](../../skills/sumble-account-scoring/articles/01-account-score-should-tell-a-rep-what-to-do.md)
+and [Part 2 — build it](../../skills/sumble-account-scoring/articles/02-build-an-account-score-you-can-prospect-from.md).

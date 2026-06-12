@@ -239,7 +239,9 @@ def _project_clause(slugs: list[str]) -> str:
 
 def _exclude_clause(filters: dict) -> str:
     """Push hard-exclude TAGS into the rank query so excluded orgs don't eat a
-    stratum quota. professional_services is industry-based (a merge-time filter)."""
+    stratum quota. professional_services is a native org tag — include it in
+    hard_exclude_tags to exclude it here for free (the legacy
+    exclude_professional_services_industry switch still drops it at merge)."""
     tags = filters.get("hard_exclude_tags") or []
     return f"tag NOT IN {sumble_v6._in_list(tags)}" if tags else ""
 

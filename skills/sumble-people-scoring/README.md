@@ -1,9 +1,10 @@
 # Sumble People Scoring Skill
 
-> 🚧 **Work in progress.** This skill is usable but still being refined, and
-> doesn't have a written guide yet. The
-> [sumble-account-scoring](../sumble-account-scoring) skill (account scoring +
-> whitespace) is stable.
+> 🚧 **Work in progress.** This skill is usable end-to-end but still being
+> refined. The method and use cases are written up in
+> [articles/](articles/01-people-scoring-use-cases.md); the step-by-step build
+> guide is coming. The [sumble-account-scoring](../sumble-account-scoring)
+> skill (account scoring + whitespace) is stable.
 
 An **Agent Skill** that turns your ideal-buyer profile into a working
 **people / lead-scoring web app**. It interviews you about your ICP (job
