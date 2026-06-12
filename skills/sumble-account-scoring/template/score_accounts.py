@@ -365,9 +365,15 @@ def effective_weights(config: dict) -> tuple[dict[str, float], list[str]]:
     return eff, dropped
 
 
-def score_row(row: dict, config: dict, eff: dict[str, float]) -> float:
+def score_row(row: dict, config: dict, eff: dict[str, float]) -> tuple[float, float, str]:
+    """Return (base_score 0-100, adjustment_factor, adjustment_detail).
+
+    final score = base_score * adjustment_factor. The boost/penalty factor and
+    its human-readable detail are returned separately so the output shows the
+    profile adjustment explicitly instead of folding it into the contributions.
+    """
     signals = config["signals"]
-    score = 0.0
+    base = 0.0
     for key, frac in eff.items():
         sig = signals[key]
         norm = normalise(
@@ -375,18 +381,23 @@ def score_row(row: dict, config: dict, eff: dict[str, float]) -> float:
             sig.get("transform", "log"),
             sig.get("p99", 1e-9),
         )
-        score += frac * norm
+        base += frac * norm
+    factor = 1.0
+    bits: list[str] = []
     for m in config.get("multipliers", []):
         pct = float(m.get("default_pct") or 0) / 100.0
         if pct > 0 and row.get(m["column"]):
-            score *= 1 - pct
+            factor *= 1 - pct
+            bits.append(f"{m.get('label') or m['column']} -{round(pct * 100)}%")
     row_tags = {t.strip() for t in str(row.get("tags") or "").split("|") if t.strip()}
     for entry in config.get("tag_multipliers", []):
         tag = entry.get("tag")
         pct = float(entry.get("pct") or 0) / 100.0
         if tag and pct > 0 and tag in row_tags:
-            score *= (1 + pct) if entry.get("direction") == "boost" else (1 - pct)
-    return score * 100.0
+            boost = entry.get("direction") == "boost"
+            factor *= (1 + pct) if boost else (1 - pct)
+            bits.append(f"{tag} {'+' if boost else '-'}{round(pct * 100)}%")
+    return base * 100.0, factor, "; ".join(bits)
 
 
 # ---------- Per-account pipeline ---------------------------------------------
@@ -399,11 +410,33 @@ def sumble_link(base: str, slug: str, spec: dict | None) -> str:
         return ""
     path = spec.get("path", "") or ""
     url = f"{base}{slug}{path}"
-    groups = [
-        {"operator": "OR", "fields": {field: {"include": values, "exclude": []}}}
+    raw_filters = {
+        field: values
         for field, values in (spec.get("filters") or {}).items()
         if isinstance(values, list) and values
-    ]
+    }
+    # technology + technology_category share ONE OR group: an ICP "tech" can
+    # be an individual tool or a predefined Sumble category, and the page
+    # should match jobs hitting either — separate groups would AND them.
+    groups: list[dict] = []
+    tech_done = False
+    for field, values in raw_filters.items():
+        if field in ("technology", "technology_category"):
+            if tech_done:
+                continue
+            groups.append({
+                "operator": "OR",
+                "fields": {
+                    k: {"include": raw_filters[k], "exclude": []}
+                    for k in ("technology", "technology_category")
+                    if k in raw_filters
+                },
+            })
+            tech_done = True
+            continue
+        groups.append(
+            {"operator": "OR", "fields": {field: {"include": values, "exclude": []}}}
+        )
     if not groups:
         return url
     params: list[tuple[str, str]] = []
@@ -451,7 +484,14 @@ def build_row(account: dict, resp_org: dict, config: dict, eff: dict[str, float]
                 link_base, slug, sig.get("sumble_link")
             )
 
-    row["score"] = round(score_row(row, config, eff), 4) if attrs.get("id") else 0.0
+    if attrs.get("id"):
+        base_score, factor, detail = score_row(row, config, eff)
+    else:
+        base_score, factor, detail = 0.0, 1.0, ""
+    row["base_score"] = round(base_score, 4)
+    row["profile_adjustment"] = round(factor, 4)
+    row["profile_adjustment_detail"] = detail
+    row["score"] = round(base_score * factor, 4)
     return row
 
 

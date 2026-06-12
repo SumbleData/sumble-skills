@@ -596,8 +596,10 @@ async function init() {
     rerenderScores();
   });
 
-  // Save — writes the self-describing people-scoring-weights.json
-  document.getElementById("save-btn").addEventListener("click", async () => {
+  // Save — writes people-scoring-weights.json AND regenerates score.csv
+  // server-side from the current sliders. Returns true on success so the
+  // Download button can reuse it.
+  async function saveWeights() {
     const status = document.getElementById("save-status");
     status.textContent = "Saving…";
     try {
@@ -610,10 +612,22 @@ async function init() {
       const data = await resp.json();
       status.textContent = data.saved_to ? `Saved → ${data.saved_to} ✓` : "Saved ✓";
       setTimeout(() => { status.textContent = ""; }, 4000);
+      return true;
     } catch {
       status.textContent = "Save failed";
+      return false;
     }
-  });
+  }
+  document.getElementById("save-btn").addEventListener("click", saveWeights);
+
+  // Download score sheet — save first (regenerates score.csv from the current
+  // sliders), then fetch the file the server just wrote.
+  const downloadBtn = document.getElementById("download-btn");
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", async () => {
+      if (await saveWeights()) window.location.href = "/score.csv";
+    });
+  }
 
   // Close breakdown
   document.getElementById("bd-close").addEventListener("click", hideBreakdown);

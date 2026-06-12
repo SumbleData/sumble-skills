@@ -1,9 +1,10 @@
 # Sumble People Scoring
 
-People-fit scoring app for Sumble's ICP. Ranks individuals at top accounts
-by Job Function, Seniority, and Skill match — plus any first-party (1P)
-engagement signals connected when the app was generated — tunable via
-real-time sliders.
+People-fit scoring app. Ranks individuals at your target accounts by Job
+Function, Seniority, and Skill match — plus any first-party (1P) engagement
+signals connected when the app was generated — tunable via real-time sliders.
+The ICP behind the score (job functions, skills, seniority floor) is in
+`config.json` → `filters_applied`, and is shown in the app header.
 
 ## Run
 
@@ -13,14 +14,6 @@ python app.py
 ```
 
 No pip install needed. Stdlib only (`http.server`, `csv`, `json`).
-
-## ICP (Sumble)
-
-- **Job functions**: Sales, Account Executive, SDR, Revenue Operations, Marketing (+ 16 leaf JFs)
-- **Skills**: clay, common-room, zoominfo, 6sense, demandbase, builtwith, champify,
-  crunchbase, hg-insights, linkedin-sales-insights, linkedin-sales-navigator,
-  people-data-labs, pitchbook, theirstack, usergems, wappalyzer, hightouch
-- **Seniority floor**: Manager and above
 
 ## Scoring
 
@@ -39,11 +32,29 @@ signals are connected those three are scaled to 75% and the 1P signals share
 the remaining 25%. Each 1P signal's `<signal>_norm` column is pre-normalised
 0–1 (p99 exponential saturation) at `data.csv` build time.
 
+When a gold set (≥20 people) was provided at build time, the starting slider
+positions may be a **regularized fit to gold** (see
+`config.json._weight_fit` for the audit trail: held-out AUC before/after,
+the shrinkage λ, and the before/after weights). The `default` values are the
+policy priors — the Reset button returns to them.
+
 Adjust via sliders and click **Save weights**. This writes
 `people-scoring-weights.json` — a self-describing scoring spec (formula,
 tuned weights, per-JF ranges, 1P signal column mappings) that a coding
 agent can read to productionize the score. `config.json` is never
 modified; the app re-opens with the saved weights.
+
+## The two CSVs
+
+- **`data.csv`** — the immutable raw pull (identity, JF/level, skills, flags,
+  1P columns). The app never rewrites it.
+- **`score.csv`** — **the one file you use.** A superset of `data.csv`:
+  `rank` → every data column (deep links included: `sumble_url`,
+  `linkedin_url`, `org_sumble_url`) → `people_score` (0–100) → one
+  contribution column per factor (points; they sum exactly to
+  `people_score`), most-impactful first. Regenerated on every **Save** and at
+  startup; the **Download score sheet** button saves the current sliders and
+  serves the same sheet.
 
 ## Scoring the full CRM (`score_leads.py`)
 
@@ -61,9 +72,10 @@ python score_leads.py \
 `leads_enriched.csv` must carry the same columns as `data.csv`
 (`job_function_slug`, `job_level_rank`, `max_job_level_rank`,
 `skill_count`, any `*_norm` 1P columns, account columns if used) — i.e.
-the full CRM run through the same Sumble enrichment. The script applies
-the exact app formula, sorts by `people_score` desc, and writes the
-augmented CSV. `--top N` keeps only the best N.
+the full CRM run through the same `_build/` enrichment (use
+`fetch_people.py --lean` for large pulls). The script applies the exact app
+formula, adds `rank`, sorts by `people_score` desc, and writes the augmented
+CSV. `--top N` keeps only the best N.
 
 ## First-party data
 
@@ -73,7 +85,8 @@ When generated with 1P data, the app also carries:
   tab gains a contact filter (All / CRM contacts / Whitespace).
 - **Gold contacts** (`is_icp_gold`) — flagged with a Gold badge and used by
   the **Evaluation** tab, which buckets all scored people and reports hit
-  rate, cumulative recall and lift over baseline.
+  rate, cumulative recall and lift over baseline. The recommended gold
+  definition is contacts role-attached to closed-won opportunities.
 - **1P signals** — per-person engagement metrics, each an extra weighted
   scoring factor with its own slider.
 

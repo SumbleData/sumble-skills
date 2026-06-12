@@ -130,10 +130,12 @@ def main() -> int:
         scored.append({**r, **s})
 
     scored.sort(key=lambda r: r["people_score"], reverse=True)
+    for rank, r in enumerate(scored, 1):
+        r["rank"] = rank
     if args.top > 0:
         scored = scored[: args.top]
 
-    extra_cols = ["people_score", "jf_score", "seniority_score", "skills_score"]
+    extra_cols = ["rank", "people_score", "jf_score", "seniority_score", "skills_score"]
     extra_cols += [f"{(s.get('weight_key') or s.get('key'))}_score"
                    for s in spec["one_p_signals"]]
     base_cols = list(rows[0].keys())

@@ -28,6 +28,8 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 
+import score_sheet  # sibling module: regenerates score.csv on Save/startup
+
 APP_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = APP_DIR / "config.json"
 DATA_PATH = APP_DIR / "data.csv"
@@ -240,7 +242,27 @@ class Handler(SimpleHTTPRequestHandler):
             return super().do_GET()
         if self.path == "/api/data":
             return self._send_json(STATE)
+        if self.path == "/score.csv":
+            return self._send_score_csv()
         return super().do_GET()
+
+    def _send_score_csv(self) -> None:
+        """Serve the score sheet (regenerated on every Save and at startup)."""
+        path = APP_DIR / "score.csv"
+        if not path.exists():
+            self.send_error(404, "score.csv not generated yet — Save first")
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/csv; charset=utf-8")
+        self.send_header("Content-Disposition", 'attachment; filename="score.csv"')
+        if "gzip" in (self.headers.get("Accept-Encoding") or ""):
+            body = gzip.compress(body)
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/api/save-weights":
@@ -259,12 +281,21 @@ class Handler(SimpleHTTPRequestHandler):
             return
         STATE["config"] = body
         STATE["saved_at"] = payload["saved_at"]
+        # Regenerate the score sheet from the just-saved weights so score.csv
+        # always matches what the user sees (data.csv stays untouched).
+        try:
+            sheet = score_sheet.build_score_sheet(APP_DIR, body)
+            rows_scored = sheet.get("rows", 0)
+        except (OSError, ValueError, KeyError) as e:
+            print(f"[score_sheet] regeneration failed: {e}", file=sys.stderr)
+            rows_scored = 0
         print(f"[weights] saved {WEIGHTS_PATH.name}", file=sys.stderr)
         return self._send_json(
             {
                 "ok": True,
                 "saved_to": WEIGHTS_PATH.name,
                 "saved_at": payload["saved_at"],
+                "rows_scored": rows_scored,
             }
         )
 
@@ -289,6 +320,12 @@ class Handler(SimpleHTTPRequestHandler):
 def main() -> None:
     port = int(os.environ.get("PORT", sys.argv[1] if len(sys.argv) > 1 else "8002"))
     host = os.environ.get("HOST", "127.0.0.1")
+    # Regenerate score.csv at startup so the sheet matches the (possibly
+    # overlay-restored) weights even before the first Save.
+    try:
+        score_sheet.build_score_sheet(APP_DIR, STATE["config"])
+    except (OSError, ValueError, KeyError) as e:
+        print(f"[score_sheet] skipped at startup: {e}", file=sys.stderr)
     config = STATE["config"]
     name = config.get("customer_name", "")
     rows = STATE["rows"]

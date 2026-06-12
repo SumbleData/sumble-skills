@@ -198,7 +198,8 @@ def main() -> None:
     techs_key = [t for t in techs if t.get("tier") != "other"]
     techs_other = [t for t in techs if t.get("tier") == "other"]
     techs_all = techs_key + techs_other
-    tech_slugs = [t["slug"] for t in techs]
+    tech_tool_slugs = [t["slug"] for t in techs if t.get("kind") != "category"]
+    tech_cat_slugs = [t["slug"] for t in techs if t.get("kind") == "category"]
     persona_names = [p["name"] for p in personas]
     since = sumble_v6.since_3mo()
 
@@ -207,6 +208,12 @@ def main() -> None:
     project_decay = [round(100 / len(projects), 2) for _ in projects] if projects else []
 
     intent_active = bool(projects)
+    # Funding is OFF by default and never suggested in the interview: funding
+    # data only exists for venture-backed companies (everyone else reads 0),
+    # so scoring it artificially boosts startups — and what funding indicates
+    # shows up in the growth attributes anyway (articles/01, "Be wary of
+    # attributes that don't cover the whole corpus"). Only an explicit
+    # `include_funding: true` in spec.json (user asked for it) enables this.
     funding_active = bool(spec.get("include_funding"))
 
     # --- Segment taxonomy (default three segments, user-overridable) ---
@@ -548,11 +555,24 @@ def main() -> None:
                     "kind": "sumble_api",
                     "api": _api_block("advanced_query", tech_term, "job_post_count", since),
                 },
+                # Individual tools go under `technology`; predefined Sumble
+                # categories under `technology_category`. The link builders
+                # merge the two into ONE OR group so the page matches jobs
+                # hitting either kind (separate groups would AND them).
                 sumble_link={
                     "path": "/jobs",
                     "filters": {
                         "project": [pslug],
-                        "technology": tech_slugs,
+                        **(
+                            {"technology": tech_tool_slugs}
+                            if tech_tool_slugs
+                            else {}
+                        ),
+                        **(
+                            {"technology_category": tech_cat_slugs}
+                            if tech_cat_slugs
+                            else {}
+                        ),
                         "hiring_period": ["3mo"],
                     },
                 },

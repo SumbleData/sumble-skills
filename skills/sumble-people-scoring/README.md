@@ -8,10 +8,14 @@
 An **Agent Skill** that turns your ideal-buyer profile into a working
 **people / lead-scoring web app**. It interviews you about your ICP (job
 functions + skills, pre-filled from your Sumble profile), builds a small
-calibration sample from ~5 companies you name so the app is ready in minutes,
+calibration sample from ~5 companies you name — pulled through Sumble's
+unified `POST /v6/people` REST endpoint — so the app is ready in minutes,
 and generates a self-contained, **zero-dependency** Python + HTML/JS app you
-run locally and tune with sliders. It also emits a production `score_leads.py`
-that applies your calibrated weights to an entire enriched CRM of people.
+run locally and tune with sliders. An optional gold set (contacts on
+closed-won deals) drives an Evaluation tab and a conservative regularized
+weight fit. It also emits a `score.csv` superset sheet and a production
+`score_leads.py` that applies your calibrated weights to an entire enriched
+CRM of people.
 
 Where the [sumble-account-scoring](../sumble-account-scoring) skill ranks
 *companies* (your accounts and net-new whitespace), this one ranks *people* —

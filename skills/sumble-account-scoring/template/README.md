@@ -36,9 +36,15 @@ Two slider levels, both constrained to sum to 100%:
 - **Within each category** (accordion) — distribute that category's
   budget across the individual signals inside it.
 
-Final contribution per signal: `(category% × within%) / 100 × normalised_value`.
-Multipliers (e.g. an IT-services penalty) multiply the summed score by
-`1 − Σ pct × flag`.
+Final contribution per signal: `(category% × within%) / 100 × normalised_value`
+— the contributions sum to the **base score**. Boosts/penalties (e.g. an
+IT-services penalty or a digital-native boost) are applied on top as an
+explicit multiplicative **profile adjustment**:
+`score = base_score × profile_adjustment`. They are never folded into the
+signal contributions — the per-account breakdown, `score.csv`, and the
+downloaded sheet all show the base score, each applied boost/penalty line,
+and the final score separately (`profile_adjustment_detail` names them, e.g.
+`digital_native +15%; it_services -35%`).
 
 All scoring runs client-side on slider input — no server round trip —
 so 5k+ rows re-rank instantly.
@@ -61,6 +67,13 @@ into git), click **Download scoring config** in the top bar. It exports
 the current sliders as a JSON file matching the on-disk format. The
 secondary **Download CSV** button below it dumps the scored sample for
 spot-checking.
+
+In the accounts table: click the **Employees** or **Score** column
+header to sort (click again to flip, a third time to restore rank
+order); the employee **min/max filter** sits inside the Employees
+header; and **Download filtered view** (above the table) exports a CSV
+of exactly the rows currently shown — category chips, search, size
+filter and sort all applied.
 
 The web app calibrates weights on a **sample**. To score a larger account
 list once weights are tuned, hand `account-scoring-weights.json` to the

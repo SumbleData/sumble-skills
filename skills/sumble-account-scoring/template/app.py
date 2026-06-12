@@ -352,6 +352,10 @@ def load_state() -> dict[str, Any]:
         "is_icp_gold",
         "account_category",
         "tags",
+        # Stage 5 whitespace-filter verdict (shown in the breakdown panel).
+        "ws_fit",
+        "ws_fit_reason",
+        "ws_filter_provider",
         *table_cols,
         *[m["column"] for m in multipliers],
     ]:

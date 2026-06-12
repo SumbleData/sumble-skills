@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CRM Cleaning — Sumble</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="https://sumble.com" target="_blank" rel="noopener">
+      <img src="/logo.svg" alt="Sumble" height="22" />
+      <span class="brand-title">CRM Cleaning<span id="company-name"></span></span>
+    </a>
+    <div class="topbar-actions">
+      <span id="progress" class="progress"></span>
+      <button id="export-btn" class="btn btn-primary">Export actions.csv</button>
+    </div>
+  </header>
+
+  <section id="summary" class="summary"></section>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="duplicates">Duplicates</button>
+    <button class="tab" data-tab="parent_sub">Hierarchy gaps</button>
+    <button class="tab" data-tab="parent_not_in_crm">Parents not in CRM</button>
+    <button class="tab" data-tab="unmatched">Unmatched</button>
+  </nav>
+
+  <div class="toolbar">
+    <div class="chips" id="confidence-chips"></div>
+    <div class="chips" id="status-chips"></div>
+    <input id="search" class="search" type="search"
+           placeholder="Search account name, domain, id…" />
+  </div>
+
+  <main id="findings"></main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

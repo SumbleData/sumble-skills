@@ -34,11 +34,18 @@ const state = {
   sectionExpanded: {}, // section_key -> bool (default collapsed)
   selectedId: null,
   tab: "accounts",
-  hiddenCategories: new Set(), // account_category values toggled OFF (filtered out)
+  // Category values toggled OFF (filtered out). Holds real account
+  // categories AND the Stage-5 pseudo-categories (ws_unprocessed / ws_fit /
+  // ws_unfit) once the LLM whitespace filter has run — "ws_unfit" is added
+  // here at load time so the sheet opens pre-pruned.
+  hiddenCategories: new Set(),
   evalBuckets: 10,
   search: "",
   sizeMin: null, // employee_count_int >= this; null = no lower bound
   sizeMax: null, // employee_count_int <= this; null = no upper bound
+  // Header sort: null = default (score desc, i.e. rank order);
+  // {col: "__score"|SIZE_FILTER_COL, desc: bool} when a header was clicked.
+  tableSort: null,
   page: 0,
   savedWeights: null, // weights loaded from account-scoring-weights.json
 };
@@ -61,6 +68,11 @@ const CATEGORY_LABELS = {
   unallocated: "CRM, unallocated",
   whitespace: "Whitespace",
   whitespace_subsidiary: "Whitespace (parent in CRM)",
+  // Pseudo-categories used by the filter chips once the Stage-5 LLM filter
+  // has classified whitespace rows: the "Whitespace" chip splits three ways.
+  ws_unprocessed: "WS · unprocessed",
+  ws_fit: "WS · ICP fit",
+  ws_unfit: "WS · not a fit",
 };
 const CATEGORY_ORDER = [
   "customer", "allocated", "unallocated", "whitespace", "whitespace_subsidiary",
@@ -136,8 +148,24 @@ function buildSumbleLink(base, slug, spec) {
   const url = `${base}${slug}${path}`;
   const filters = spec.filters || {};
   const groups = [];
+  // technology + technology_category share ONE OR group: an ICP "tech" can
+  // be an individual tool or a predefined Sumble category, and the page
+  // should match jobs hitting either — separate groups would AND them.
+  let techDone = false;
   for (const [field, values] of Object.entries(filters)) {
     if (!Array.isArray(values) || values.length === 0) continue;
+    if (field === "technology" || field === "technology_category") {
+      if (techDone) continue;
+      const fields = {};
+      for (const k of ["technology", "technology_category"]) {
+        if (Array.isArray(filters[k]) && filters[k].length > 0) {
+          fields[k] = { include: filters[k], exclude: [] };
+        }
+      }
+      groups.push({ operator: "OR", fields });
+      techDone = true;
+      continue;
+    }
     groups.push({
       operator: "OR",
       fields: { [field]: { include: values, exclude: [] } },
@@ -252,7 +280,8 @@ function poolForCategory(catKey) {
   return sub;
 }
 
-function rowScore(row) {
+// Weighted-signal part of the score, 0-100 — BEFORE any boost/penalty.
+function rowBaseScore(row) {
   let score = 0;
   const sec = hasSections();
   for (const [key, spec] of Object.entries(state.config.signals)) {
@@ -263,14 +292,29 @@ function rowScore(row) {
     const norm = row[`norm_${key}`] || 0;
     score += sectionPct * catPct * withinPct * norm;
   }
+  return score * 100;
+}
+
+// The row's multiplicative PROFILE ADJUSTMENT: plain column multipliers (e.g.
+// is_it_services) plus the per-tag multipliers. Kept separate from the base
+// score so the breakdown panel and exports can show "base × adjustment =
+// score" explicitly, instead of folding the factor invisibly into the signal
+// contributions. Returns { factor, parts: [{ label, pct }] } with pct signed
+// (+ boost / − penalty).
+function rowAdjustment(row) {
+  let factor = 1;
+  const parts = [];
   for (const m of state.config.multipliers || []) {
     const pct = (state.multPct[m.column] || 0) / 100;
-    if (pct > 0 && row[m.column]) score *= 1 - pct;
+    if (pct > 0 && row[m.column]) {
+      factor *= 1 - pct;
+      parts.push({ label: m.label || m.column, pct: -Math.round(pct * 100) });
+    }
   }
-  // Per-tag multipliers. row.tags is a pipe-delimited string (e.g.
-  // "b2b|digital_native"). For each active multiplier whose tag is
-  // present on the row, apply (1 - pct/100) for penalty or (1 + pct/100)
-  // for boost. Direction stored on the multiplier entry; default = penalty.
+  // row.tags is a pipe-delimited string (e.g. "b2b|digital_native"). For each
+  // active multiplier whose tag is present on the row, apply (1 - pct/100)
+  // for penalty or (1 + pct/100) for boost. Direction stored on the entry;
+  // default = penalty.
   if (state.tagMult.length) {
     const rowTags = parseRowTags(row);
     if (rowTags.size) {
@@ -279,11 +323,20 @@ function rowScore(row) {
         if (!rowTags.has(entry.tag)) continue;
         const pct = (Number(entry.pct) || 0) / 100;
         if (pct <= 0) continue;
-        score *= entry.direction === "boost" ? 1 + pct : 1 - pct;
+        const boost = entry.direction === "boost";
+        factor *= boost ? 1 + pct : 1 - pct;
+        parts.push({
+          label: tagLabel(entry.tag),
+          pct: boost ? Math.round(pct * 100) : -Math.round(pct * 100),
+        });
       }
     }
   }
-  return score * 100;
+  return { factor, parts };
+}
+
+function rowScore(row) {
+  return rowBaseScore(row) * rowAdjustment(row).factor;
 }
 
 function parseRowTags(row) {
@@ -314,6 +367,34 @@ function rankedRows() {
   return ranked;
 }
 
+// Stage-5 LLM filter verdict for a row: "1" (fit), "0" (not a fit), or ""
+// (never classified). data.csv stores it as a string; app.py may coerce to
+// a number — normalise both.
+function wsFitValue(row) {
+  const v = row.ws_fit;
+  if (v == null || v === "") return "";
+  const s = String(v);
+  return s === "1" || s === "1.0" ? "1" : s === "0" || s === "0.0" ? "0" : "";
+}
+
+function hasWsFilter() {
+  return state.rows.some((r) => wsFitValue(r) !== "");
+}
+
+// Category used for FILTERING (chips). Once the LLM filter has run, the
+// plain "whitespace" category splits three ways: classified rows map to
+// ws_fit / ws_unfit, unclassified plain-whitespace rows to ws_unprocessed.
+// Other categories (and unclassified subsidiaries) keep their real value.
+// Display (Category column, Evaluation tab) keeps using rowCategory().
+function effectiveCategory(row) {
+  const v = wsFitValue(row);
+  if (v === "1") return "ws_fit";
+  if (v === "0") return "ws_unfit";
+  const cat = rowCategory(row);
+  // state.wsPresent is computed once at data load (avoids an O(n²) scan).
+  return cat === "whitespace" && state.wsPresent ? "ws_unprocessed" : cat;
+}
+
 function filteredRanked() {
   const ranked = rankedRows();
   const q = (state.search || "").trim().toLowerCase();
@@ -321,11 +402,12 @@ function filteredRanked() {
   const sMin = state.sizeMin;
   const sMax = state.sizeMax;
   const sizeActive = sMin != null || sMax != null;
-  const hidden = state.config.has_categories ? state.hiddenCategories : null;
+  const hidden =
+    state.config.has_categories || state.wsPresent ? state.hiddenCategories : null;
   const catActive = hidden && hidden.size > 0;
   if (!q && !sizeActive && !catActive) return ranked;
   return ranked.filter(({ row }) => {
-    if (catActive && hidden.has(rowCategory(row))) return false;
+    if (catActive && hidden.has(effectiveCategory(row))) return false;
     if (sizeActive) {
       const emp = Number(row[SIZE_FILTER_COL]);
       if (!Number.isFinite(emp)) return false;
@@ -1001,7 +1083,7 @@ function renderTable() {
   const evalView = document.getElementById("eval-view");
   if (evalView) evalView.classList.add("hidden");
 
-  const ranked = filteredRanked();
+  const ranked = sortedFilteredRanked();
   const total = ranked.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if (state.page >= totalPages) state.page = totalPages - 1;
@@ -1017,11 +1099,16 @@ function renderTable() {
     const tr = el("tr");
     tr.appendChild(el("th", { class: "num" }, "Rank"));
     if (state.config.has_categories) tr.appendChild(el("th", {}, "Category"));
-    for (const col of state.config.table_columns) tr.appendChild(el("th", {}, col));
-    tr.appendChild(el("th", { class: "num" }, state.config.score_label || "Score"));
+    for (const col of state.config.table_columns) {
+      // The employee column header is sortable and hosts the min/max filter.
+      if (col === SIZE_FILTER_COL) tr.appendChild(buildEmployeeHeader());
+      else tr.appendChild(el("th", {}, col));
+    }
+    tr.appendChild(buildScoreHeader());
     thead.appendChild(tr);
     thead.dataset.built = "1";
   }
+  updateSortArrows();
 
   tbody.innerHTML = "";
   slice.forEach(({ row, score, rank }) => {
@@ -1086,6 +1173,139 @@ function renderTable() {
   document.getElementById("row-summary").textContent = summary;
 }
 
+// ---------- Header sorting + filtered view ----------
+
+// The displayed row order: filteredRanked() (global score ranks intact),
+// re-sorted when a header sort is active. Shared by the table renderer and
+// the filtered-view CSV export so the download is exactly what's on screen.
+function sortedFilteredRanked() {
+  const ranked = filteredRanked();
+  const s = state.tableSort;
+  if (s) {
+    const dir = s.desc ? -1 : 1;
+    const val = (e) => (s.col === "__score" ? e.score : Number(e.row[s.col]) || 0);
+    ranked.sort((a, b) => dir * (val(a) - val(b)));
+  }
+  return ranked;
+}
+
+function toggleSort(col) {
+  const s = state.tableSort;
+  if (col === "__score") {
+    // The default order already IS score-descending, so clicking Score
+    // toggles ascending and back.
+    state.tableSort =
+      s && s.col === "__score" && !s.desc ? null : { col: "__score", desc: false };
+    if (s && s.col !== "__score") state.tableSort = null;
+  } else if (!s || s.col !== col) {
+    state.tableSort = { col, desc: true };
+  } else if (s.desc) {
+    state.tableSort = { col, desc: false };
+  } else {
+    state.tableSort = null;
+  }
+  state.page = 0;
+  renderTable();
+}
+
+function updateSortArrows() {
+  const s = state.tableSort;
+  const set = (id, on, desc) => {
+    const span = document.getElementById(id);
+    if (span) span.textContent = on ? (desc ? " ▼" : " ▲") : "";
+  };
+  set("sort-arrow-score", !s || s.col === "__score", s ? s.desc : true);
+  set("sort-arrow-emp", !!(s && s.col === SIZE_FILTER_COL), s ? s.desc : true);
+}
+
+// Employees header: sortable label + the min/max size filter, which lives
+// IN the column header (not the toolbar).
+function buildEmployeeHeader() {
+  const th = el("th", { class: "num sortable th-emp" });
+  th.appendChild(
+    el(
+      "span",
+      { class: "th-sort-label", onclick: () => toggleSort(SIZE_FILTER_COL) },
+      "Employees",
+      el("span", { id: "sort-arrow-emp", class: "sort-arrow" }),
+    ),
+  );
+  const wireSize = (input, key) => {
+    input.addEventListener("input", (e) => {
+      const v = e.target.value.trim();
+      let n = v === "" ? null : Number(v);
+      if (n != null && !Number.isFinite(n)) n = null;
+      state[key] = n;
+      state.page = 0;
+      renderTable();
+    });
+  };
+  const minInput = el("input", {
+    id: "size-min", type: "number", min: "0", inputmode: "numeric",
+    placeholder: "min", class: "th-size-input",
+  });
+  const maxInput = el("input", {
+    id: "size-max", type: "number", min: "0", inputmode: "numeric",
+    placeholder: "max", class: "th-size-input",
+  });
+  wireSize(minInput, "sizeMin");
+  wireSize(maxInput, "sizeMax");
+  th.appendChild(
+    el(
+      "div",
+      { class: "th-size-filter", onclick: (e) => e.stopPropagation() },
+      minInput,
+      el("span", { class: "size-filter-dash" }, "–"),
+      maxInput,
+    ),
+  );
+  return th;
+}
+
+function buildScoreHeader() {
+  return el(
+    "th",
+    { class: "num sortable", onclick: () => toggleSort("__score") },
+    state.config.score_label || "Score",
+    el("span", { id: "sort-arrow-score", class: "sort-arrow" }),
+  );
+}
+
+function csvCell(v) {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+// Download EXACTLY the rows currently shown (chips + search + size filter +
+// header sort), with identity, category, score, and (when present) the
+// Stage-5 LLM verdict + reason and the org's Sumble link.
+function downloadFilteredCsv() {
+  const ranked = sortedFilteredRanked();
+  const base = state.config.sumble_url_base || "https://sumble.com/orgs/";
+  const slugCol = state.config.slug_column;
+  const cols = ["rank"];
+  if (state.config.has_categories) cols.push("account_category");
+  cols.push(...state.config.table_columns, "score");
+  if (state.wsPresent) cols.push("ws_fit", "ws_fit_reason");
+  cols.push("sumble_url");
+  const lines = [cols.map(csvCell).join(",")];
+  for (const { row, score, rank } of ranked) {
+    const vals = [rank];
+    if (state.config.has_categories) vals.push(rowCategory(row));
+    for (const c of state.config.table_columns) vals.push(row[c]);
+    vals.push(score.toFixed(2));
+    if (state.wsPresent) vals.push(wsFitValue(row), row.ws_fit_reason || "");
+    vals.push(row.sumble_url || (slugCol && row[slugCol] ? base + row[slugCol] : ""));
+    lines.push(vals.map(csvCell).join(","));
+  }
+  const blob = new Blob([lines.join("\n") + "\n"], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "filtered-accounts.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 // ---------- Render: per-row breakdown ----------
 
 function findRow(id) {
@@ -1131,6 +1351,29 @@ function updateBreakdown() {
         rel: "noopener",
       }, "Open in Sumble →"),
     );
+  }
+
+  // LLM whitespace-filter verdict (Stage 5): when this row has been
+  // classified (ws_fit present), show the fit boolean + the model's
+  // one-sentence reason at the top of the breakdown.
+  const oldVerdict = document.getElementById("breakdown-llm-fit");
+  if (oldVerdict) oldVerdict.remove();
+  const wsFit = row.ws_fit == null ? "" : String(row.ws_fit);
+  if (wsFit === "1" || wsFit === "0") {
+    const fit = wsFit === "1";
+    const provider = row.ws_filter_provider
+      ? `LLM filter · ${row.ws_filter_provider}`
+      : "LLM filter";
+    const box = el(
+      "div",
+      { id: "breakdown-llm-fit", class: `llm-fit-box ${fit ? "fit" : "unfit"}` },
+      el("span", { class: "llm-fit-badge" }, fit ? "✓ ICP fit" : "✗ Not an ICP fit"),
+      el("span", { class: "llm-fit-provider" }, provider),
+      row.ws_fit_reason
+        ? el("div", { class: "llm-fit-reason" }, String(row.ws_fit_reason))
+        : null,
+    );
+    meta.parentNode.insertBefore(box, meta.nextSibling);
   }
 
   const items = [];
@@ -1205,6 +1448,48 @@ function updateBreakdown() {
       ),
     );
   }
+
+  // Summary footer: base score → each applied boost/penalty as its own line
+  // (with the point delta it caused) → final score. Makes the multiplicative
+  // adjustment explicit instead of hiding it inside the contributions, which
+  // sum to the BASE score. Only rendered when an adjustment actually applies.
+  const adj = rowAdjustment(row);
+  if (adj.parts.length) {
+    const baseScore = rowBaseScore(row);
+    const summaryRow = (cls, label, mid, value) =>
+      el(
+        "tr",
+        { class: cls },
+        el("td", {}, label),
+        el("td", { class: "num" }, mid),
+        el("td", { class: "num" }, ""),
+        el("td", { class: "num" }, value),
+      );
+    tbody.appendChild(
+      summaryRow(
+        "breakdown-summary",
+        "Base score (signals above)",
+        "",
+        fmtFloat(baseScore, 2),
+      ),
+    );
+    // Apply the parts sequentially so each line shows the points it added or
+    // removed; the deltas plus the base sum exactly to the final score.
+    let running = baseScore;
+    for (const p of adj.parts) {
+      const next = running * (1 + p.pct / 100);
+      tbody.appendChild(
+        summaryRow(
+          "breakdown-adjust",
+          `${p.pct > 0 ? "Boost" : "Penalty"}: ${p.label}`,
+          `${p.pct > 0 ? "+" : ""}${p.pct}%`,
+          fmtFloat(next - running, 2),
+        ),
+      );
+      running = next;
+    }
+    tbody.appendChild(summaryRow("breakdown-summary", "Score", "", fmtFloat(score, 2)));
+  }
 }
 
 // ---------- Render: category filter chips ----------
@@ -1216,7 +1501,8 @@ function updateBreakdown() {
 function renderCategoryChips() {
   const wrap = document.getElementById("category-filter");
   if (!wrap) return;
-  if (!state.config.has_categories) {
+  const wsPresent = !!state.wsPresent;
+  if (!state.config.has_categories && !wsPresent) {
     wrap.classList.add("hidden");
     return;
   }
@@ -1224,12 +1510,22 @@ function renderCategoryChips() {
   wrap.innerHTML = "";
   const counts = {};
   for (const r of state.rows) {
-    const c = rowCategory(r);
+    const c = effectiveCategory(r);
     counts[c] = (counts[c] || 0) + 1;
   }
-  const present = state.config.categories_present || [];
+  // Chip list = the present categories, with "whitespace" expanded into the
+  // three-way Stage-5 split (unprocessed / ICP fit / not a fit) once the
+  // LLM filter has classified rows.
+  let present = (state.config.categories_present || []).slice();
+  if (wsPresent) {
+    const split = ["ws_unprocessed", "ws_fit", "ws_unfit"];
+    const i = present.indexOf("whitespace");
+    if (i >= 0) present.splice(i, 1, ...split);
+    else present = present.concat(split);
+  }
 
-  // "All" — active when nothing is hidden; click resets the filter.
+  // "All" — active when nothing is hidden; click resets the filter
+  // (including the Stage-5 whitespace-fit chips).
   const allActive = state.hiddenCategories.size === 0;
   wrap.appendChild(
     el(
@@ -1418,9 +1714,12 @@ function resetDefaults() {
 
 function downloadCsv() {
   // Download the SCORE SHEET (mirrors score.csv): rank (far left) -> identity ->
-  // score -> one CONTRIBUTION column per signal (points, scaled so they SUM to
-  // score) -> deep links (org page + one per signal) on the far right, from the
-  // CURRENT sliders. Zero-contribution signals dropped. Sorted by rank.
+  // score -> base_score -> profile_adjustment (+detail) -> one CONTRIBUTION
+  // column per signal (points; they SUM to base_score) -> deep links (org page
+  // + one per signal) on the far right, from the CURRENT sliders. The
+  // boost/penalty factor is surfaced explicitly (score = base_score ×
+  // profile_adjustment) instead of being folded into the contributions.
+  // Zero-contribution signals dropped. Sorted by rank.
   const rows = state.rows;
   if (!rows.length) return;
 
@@ -1431,12 +1730,13 @@ function downloadCsv() {
   const base = state.config.sumble_url_base || "https://sumble.com/orgs/";
   const slugCol = state.config.slug_column || "slug";
 
-  // Per-signal contribution, scaled by the row's multiplier factor so the
-  // contributions sum to the final score (which includes multipliers).
+  // Per-signal contribution (UNSCALED — sums to the row's base score) + the
+  // row's adjustment, captured once so detail strings match the factor.
   const contrib = rows.map(() => ({}));
   const totals = {};
+  const baseScores = [];
+  const adjusts = [];
   const scores = rows.map((row, i) => {
-    const raw = {};
     let b = 0;
     for (const key of keys) {
       const cat = signals[key].category || "first_party";
@@ -1444,17 +1744,14 @@ function downloadCsv() {
       const catPct = (state.catPct[cat] || 0) / 100;
       const wPct = ((state.withinPct[cat] || {})[key] || 0) / 100;
       const c = secPct * catPct * wPct * (row[`norm_${key}`] || 0) * 100;
-      raw[key] = c;
+      contrib[i][key] = c;
+      totals[key] = (totals[key] || 0) + c;
       b += c;
     }
-    const score = rowScore(row); // includes multipliers
-    const factor = b > 0 ? score / b : 0;
-    for (const key of keys) {
-      const cc = raw[key] * factor;
-      contrib[i][key] = cc;
-      totals[key] = (totals[key] || 0) + cc;
-    }
-    return score;
+    const adj = rowAdjustment(row);
+    baseScores.push(b);
+    adjusts.push(adj);
+    return b * adj.factor;
   });
 
   // Keep signals with nonzero total contribution; most-impactful first.
@@ -1499,7 +1796,8 @@ function downloadCsv() {
     labelFor[k] = lab;
   }
   const cols = [
-    "rank", ...left, "score",
+    "rank", ...left,
+    "score", "base_score", "profile_adjustment", "profile_adjustment_detail",
     ...live.map((k) => labelFor[k]),
     ...linkKeys.map((k) => `${labelFor[k]} link`),
   ];
@@ -1524,7 +1822,14 @@ function downloadCsv() {
     const slug = row[slugCol] || "";
     const orgUrl = row.sumble_url || (slug ? `${base}${slug}` : "");
     const leftVals = left.map((c) => esc(c === "sumble_url" ? orgUrl : row[c]));
-    const out = [esc(r + 1), ...leftVals, esc(r4(scores[idx]))];
+    const adj = adjusts[idx];
+    const detail = adj.parts
+      .map((p) => `${p.label} ${p.pct > 0 ? "+" : ""}${p.pct}%`)
+      .join("; ");
+    const out = [
+      esc(r + 1), ...leftVals,
+      esc(r4(scores[idx])), esc(r4(baseScores[idx])), esc(r4(adj.factor)), esc(detail),
+    ];
     for (const k of live) out.push(esc(r4(contrib[idx][k])));
     // Per-signal links prefer the API's canonical URL ({column}_link); fall
     // back to building one from the sumble_link spec so links are never blank.
@@ -1726,6 +2031,11 @@ async function init() {
   state.config = data.config;
   state.rows = data.rows;
   state.availableTags = data.config.available_tags || [];
+  // Stage-5 LLM whitespace filter: when classified rows exist, the
+  // Whitespace chip splits into unprocessed / ICP fit / not-a-fit, and the
+  // sheet opens PRE-PRUNED — "not a fit" rows hidden until toggled back on.
+  state.wsPresent = hasWsFilter();
+  if (state.wsPresent) state.hiddenCategories.add("ws_unfit");
 
   document.getElementById("customer-name").textContent =
     state.config.customer_name || "Account scoring";
@@ -1850,48 +2160,12 @@ async function init() {
     });
   }
 
-  // Employee-size filter (min/max range, hides rows; scores stay
-  // normalized across the full universe). Hidden if the data lacks
-  // an employee_count_int column.
-  const sizeFilter = document.getElementById("size-filter");
-  const sizeMin = document.getElementById("size-min");
-  const sizeMax = document.getElementById("size-max");
-  const sizeClear = document.getElementById("size-clear");
-  const hasSizeCol = state.rows.some((r) => r[SIZE_FILTER_COL] != null);
-  if (sizeFilter && !hasSizeCol) sizeFilter.classList.add("hidden");
-  const applySize = () => {
-    state.page = 0;
-    renderTable();
-  };
-  if (sizeMin) {
-    sizeMin.addEventListener("input", (e) => {
-      const v = e.target.value.trim();
-      state.sizeMin = v === "" ? null : Number(v);
-      if (state.sizeMin != null && !Number.isFinite(state.sizeMin)) {
-        state.sizeMin = null;
-      }
-      applySize();
-    });
-  }
-  if (sizeMax) {
-    sizeMax.addEventListener("input", (e) => {
-      const v = e.target.value.trim();
-      state.sizeMax = v === "" ? null : Number(v);
-      if (state.sizeMax != null && !Number.isFinite(state.sizeMax)) {
-        state.sizeMax = null;
-      }
-      applySize();
-    });
-  }
-  if (sizeClear) {
-    sizeClear.addEventListener("click", () => {
-      state.sizeMin = null;
-      state.sizeMax = null;
-      if (sizeMin) sizeMin.value = "";
-      if (sizeMax) sizeMax.value = "";
-      applySize();
-    });
-  }
+  // The employee min/max size filter now lives in the column header
+  // (buildEmployeeHeader) — no toolbar wiring needed.
+
+  // Download exactly the rows currently shown (filters + sort applied).
+  const dlFiltered = document.getElementById("download-filtered");
+  if (dlFiltered) dlFiltered.addEventListener("click", downloadFilteredCsv);
   document.getElementById("page-prev").addEventListener("click", () => {
     if (state.page > 0) {
       state.page--;

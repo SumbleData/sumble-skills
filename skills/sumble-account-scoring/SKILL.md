@@ -70,9 +70,17 @@ whitespace / both) and the rest of the run adapts.
   key **without echoing** (so it never lands in the chat transcript or shell
   history), and saves it to `~/.config/sumble/api_key` (chmod 0600):
   ```bash
-  ! python <skill_dir>/template/_build/set_api_key.py
+  ! python3 <skill_dir>/template/_build/set_api_key.py
   ```
-  Use the hidden-input helper as the default — **don't ask the user to paste the
+  **Always `python3`, never bare `python`** — stock macOS (and many Linux
+  boxes) ship `python3` only, and `python ...` fails with "command not found".
+  **If `python3` itself is missing or broken**, use the zero-dependency POSIX
+  shell version (identical behavior — hidden input, `~/.config/sumble/api_key`,
+  chmod 600):
+  ```bash
+  ! sh <skill_dir>/template/_build/set_api_key.sh
+  ```
+  Use a hidden-input helper as the default — **don't ask the user to paste the
   key into the chat** (it would be logged). `fetch_data.py` and
   `score_accounts.py` then find it automatically. Power-user alternatives the
   resolver also accepts: `export SUMBLE_API_KEY=...` (this session only) or a
@@ -113,14 +121,16 @@ the portable way to avoid that everywhere. Follow these rules exactly:
 
 The only shell this skill needs is `mkdir -p <abs>`, `cp <abs> <abs>`, and
 `python3 <abs>/script.py [args]` (the `_build/*` pipeline + Stage 4
-`python app.py`) — each as one standalone command. Everything else is a tool.
+`python3 app.py`) — each as one standalone command. Everything else is a tool.
 
 **Running a command in the user's own terminal.** A couple of steps (the API-key
 helper, launching `app.py`) are best run by the user so they're interactive / stay
 up. In **Claude Code** prefix the command with `!` to run it in the user's
-terminal (e.g. `! python <skill_dir>/template/_build/set_api_key.py`). In
+terminal (e.g. `! python3 <skill_dir>/template/_build/set_api_key.py`). In
 **Codex / Cursor** (no `!` syntax), just tell the user to paste that same command
-(without the `!`) into a terminal themselves.
+(without the `!`) into a terminal themselves. Always write `python3`, never bare
+`python` (absent on stock macOS); when Python is unavailable entirely, every
+`set_api_key.py` usage has a shell twin: `sh <skill_dir>/template/_build/set_api_key.sh`.
 
 ## Output
 
@@ -134,7 +144,7 @@ account_scoring/<company>/
                                    scoring skill reproduces the score from it
   score_sheet.py                  GENERATOR SCRIPT (not a CSV) — regenerates score.csv from data.csv + weights on Save/startup (copied from template/, unchanged)
   data.csv                        IMMUTABLE raw API pull (all raw signal columns); the re-score source, never rewritten by the app
-  score.csv                       THE one file you use — a SUPERSET of data.csv: rank → all data columns → score → per-signal contribution columns → deep links, sorted by rank (zero-contribution signals drop only their contribution column)
+  score.csv                       THE one file you use — a SUPERSET of data.csv: rank → all data columns → score → base_score → profile_adjustment (+detail) → per-signal contribution columns → deep links, sorted by rank (zero-contribution signals drop only their contribution column)
   static/                         UI: sliders, table, per-row breakdown
   README.md
 ```
@@ -145,14 +155,20 @@ account_scoring/<company>/
   app never rewrites it; it's the source the app re-scores from. You can ignore
   it unless you want the untouched raw archive.
 - `score.csv` — **the one file you use.** A *superset* of `data.csv`: it carries
-  every data column PLUS `score`, `rank`, one per-signal **contribution** column
-  (`norm × effective_weight × multiplier × 100`, ordered most-impactful-first,
-  summing exactly to `score`), and **deep links** (`sumble_url` + one per signal)
-  — sorted by rank. So you never join score.csv back to data.csv. The app
-  **regenerates** it from `data.csv` + the tuned weights on every Save and at
-  startup (`score_sheet.build_score_sheet`); a signal with 0 total contribution
-  drops only its contribution column (its raw column stays). The **Download
-  score sheet** button produces the same sheet from the current sliders.
+  every data column PLUS `score`, `rank`, `base_score`, `profile_adjustment`
+  (+ a `profile_adjustment_detail` column naming each applied boost/penalty,
+  e.g. `digital_native +15%; it_services -35%`), one per-signal **contribution**
+  column (`norm × effective_weight × 100`, ordered most-impactful-first,
+  summing exactly to `base_score`), and **deep links** (`sumble_url` + one per
+  signal) — sorted by rank. The boost/penalty multipliers are NOT folded into
+  the contributions; they're explicit:
+  `score = base_score × profile_adjustment`. So you never join score.csv back
+  to data.csv. The app **regenerates** it from `data.csv` + the tuned weights
+  on every Save and at startup (`score_sheet.build_score_sheet`); a signal with
+  0 total contribution drops only its contribution column (its raw column
+  stays). The **Download score sheet** button produces the same sheet from the
+  current sliders, and the per-account breakdown panel shows the same story:
+  signal contributions → base score → each boost/penalty line → final score.
 
 **Two score-sheet non-negotiables (NEVER strip these — the template enforces
 both with fallbacks):**
@@ -176,7 +192,7 @@ fix it before telling the user the app is ready.
 
 **Zero-dependency rule:** `app.py` uses only the stdlib (`csv`, `json`,
 `math`, `http.server`) — no `requirements.txt`, no third-party imports,
-so any teammate can `python app.py` on the first try.
+so any teammate can `python3 app.py` on the first try.
 
 `account-scoring-weights.json` is the **only** file the app reads — the
 structural spec (sections/categories/signals/multipliers) AND the current
@@ -271,7 +287,10 @@ and `{project}_x_relevant_persona_jobposts` (Template C5). The relevant
 sets follow the Stage 1 eligibility rules (tech = competitors +
 complementary across key+other; personas key+other; projects key only).
 
-**Funding columns** (only when `spec.include_funding` is true) — pulled
+**Funding columns** (only when `spec.include_funding` is true — **OFF by
+default and never suggested**: funding only covers venture-backed companies,
+so scoring it artificially boosts them; see the Stage 1 Q2 note. Enable only
+on explicit user request, with the coverage-skew warning) — pulled
 from the `/v6/organizations` funding attributes (1 credit each per matched
 org). Three scoring signals (all `api_supported:true`, reproduced by
 `score_accounts.py`):
@@ -288,11 +307,10 @@ org). Three scoring signals (all `api_supported:true`, reproduced by
 
 `funding_last_round_type`/`_date` are also carried as context (not scored).
 The Growth & momentum segment always exists (persona growth), so funding
-momentum lands there regardless of whether the spec has projects. Rationale:
-more capital / a large, recent round = bigger budget and an active hiring ramp
-= more interviews. Set `"include_funding": true` in `spec.json` (Stage 2a) to
-enable. (These default segment placements move if `spec.section_plan`
-reassigns the `funding` / `funding_momentum` categories.)
+momentum lands there regardless of whether the spec has projects. Set
+`"include_funding": true` in `spec.json` (Stage 2a) to enable — again, only
+when the user explicitly asked. (These default segment placements move if
+`spec.section_plan` reassigns the `funding` / `funding_momentum` categories.)
 
 **Non-Sumble (1P) columns** — anything the user can join by account, one
 `{slug}_{measure}` column + one signal each, grouped into categories
@@ -315,13 +333,20 @@ without overfitting. The design:
 - **Shrinkage to the priors.** Objective is
   `AUC(gold) − λ·‖w − w_default‖²`, so a weight moves only when the gold
   evidence overcomes the prior.
-- **Box bounds.** No category weight drifts more than ±10 points, and the
-  segment blend ±15 points, from its default — the model stays recognizable.
-- **K-fold CV picks λ on held-out gold**, never the training fit; the optimizer
-  is derivative-free coordinate ascent (a few sweeps).
-- **Adopt-only-if-it-generalizes.** The fit replaces the defaults only if
-  held-out AUC beats the priors by ≥ 0.01; otherwise the priors stand.
+- **Box bounds.** No category weight drifts more than ±20 points, and the
+  segment blend ±25 points, from its default — the model stays recognizable.
+- **K-fold CV picks λ on held-out gold** via the 1-SE rule over paired
+  per-fold gains vs the defaults (among λs within one standard error of the
+  best mean gain, the largest — most shrinkage — wins); the optimizer is
+  derivative-free coordinate ascent (a few sweeps).
+- **Adopt-only-if-it-generalizes.** A paired per-fold test: the fit replaces
+  the defaults only when the mean held-out AUC gain clears both an absolute
+  floor (0.002) and one standard error of the per-fold gains — the bar scales
+  with the evidence, so a consistent small gain on a large gold set is adopted
+  while same-size noise on a tiny one is not.
 - **Small-gold guard.** Fewer than ~20 gold rows → skip the fit, keep priors.
+- **Speed/balance.** The fit ranks gold against a deterministic systematic
+  subsample of ≤5,000 non-gold rows; reported full-sample metrics use all rows.
 
 It's a warm start, not an autopilot: the fitted weights are the app's initial
 slider positions, still fully tunable, and the Evaluation tab shows the
@@ -343,7 +368,23 @@ Execute these stages in order. Surface progress between stages.
 
 ### Stage 1 — Interview
 
-Goal: collect the input required to produce a first version of the score. Please follow these interview questions very closely and do not go off script. I want a deterministic interview that is the same between different runs of this skill. 
+Goal: collect the input required to produce a first version of the score. Please follow these interview questions very closely and do not go off script. I want a deterministic interview that is the same between different runs of this skill.
+
+**Numbering rule:** the interview has **4 main questions**. Start every
+interview message with a progress marker — `**Question N of 4**` (sub-steps
+as `Question 4 of 4 — part 4.1`, etc.) — so the user always knows where they
+are and how much interview remains. When you combine questions into one
+message, label it with the range (e.g. `**Questions 2–4 of 4**`).
+
+**Confirmation rule (applies to EVERY confirm step in this interview):** when
+you ask the user to confirm something — the ICP, the segments, the
+buying-window combos, the universe filters — the COMPLETE thing being
+confirmed MUST be rendered in full, as markdown, in the SAME message as the
+question. Never ask "confirm the proposed ICP/filters?" while the details
+live only in an earlier message, in a tool result, or inside multiple-choice
+option labels (interactive question widgets truncate labels and descriptions
+— they are NOT a substitute for printing the list). If anything changed since
+the last time it was shown, re-print the whole updated list, not a diff.
 
 1. Please ask the company's name and their URL. You can prefill if you know it and ask the user to confirm. Also ask them where they want the account scoring to be stored. Can default to ./tmp/account_scoring/<company> directory. 
 
@@ -352,12 +393,18 @@ Goal: collect the input required to produce a first version of the score. Please
    orthogonal segments — **don't re-derive them, just propose them and let the
    user adjust**:
    - **Size (50%)** — how big is the opportunity: persona headcount, tech
-     team counts, recent project×tech / project×persona job posts, total
-     funding raised.
-   - **Growth & momentum (30%)** — is now the time: persona YoY growth and
-     funding momentum (latest round size + recency).
+     team counts, recent project×tech / project×persona job posts.
+   - **Growth & momentum (30%)** — is now the time: persona YoY growth.
    - **Concentration (20%)** — how strong / focused the fit: persona
      concentration (% of company) and tech-team concentration (% of teams).
+
+   **Do NOT suggest funding attributes.** Funding data only exists for
+   venture-backed companies — everyone else reads 0 — so scoring it
+   artificially boosts startups (the partial-coverage principle in
+   `articles/01`); what funding indicates shows up in growth attributes
+   anyway. Include funding ONLY if the user explicitly asks for it, and when
+   they do, warn them about the coverage skew (it can be reasonable when
+   their universe is overwhelmingly venture-backed).
    
    Present these three with their blend and one yes/edit prompt. The user can
    **rename, reweight, drop, or add segments**, and may **repeat a signal in
@@ -390,12 +437,21 @@ Goal: collect the input required to produce a first version of the score. Please
 
    Present as **ONE** compact markdown summary + a single yes/edit prompt
    (no multi-selects, no per-category questions); loop on edits until
-   accepted. Example:
+   accepted. **The summary must be COMPLETE — every element of the ICP the
+   pipeline will fetch, with nothing elided:** all personas with key/other
+   tiers; every technology category with its coverage% and the full list of
+   absorbed techs; every individual tech with its tier; every project; and —
+   only if the user explicitly asked for funding — that funding attributes
+   are on. Render it in the message itself (see the Confirmation rule above
+   — never rely on question-widget option labels to carry the list). Example:
    ```
    Proposed ICP for <company>:
-     • Personas: Sales, RevOps, Marketing
-     • Technology categories: Inference & Serving (31% — vllm, baseten, …)
-     • Technologies (individual): clay, common-room, hg-insights, zoominfo
+     • Personas (key): Sales, RevOps · (other): Marketing
+     • Technology categories: Inference & Serving (31% — absorbs vllm,
+       baseten, modal, replicate)
+     • Technologies (individual): clay (key), common-room (key),
+       hg-insights (other), zoominfo (other)
+     • Projects: Generative AI, Digital Transformation
    Reply "yes", or describe changes (e.g. "drop marketing, add SDR",
    "split out vllm from Inference & Serving").
    ```
@@ -444,11 +500,23 @@ Goal: collect the input required to produce a first version of the score. Please
      (a)** so the app can surface which universe accounts are *unallocated* —
      high-fit accounts nobody is working yet.
    - **(c) Closed-won / customers** — closed-won flag (`IsCustomer__c`,
-     `lifecyclestage='customer'`, a closed-won `Opportunity`). Used in ALL
-     modes for the Evaluation tab + Step 4(a) tag-lift calibration. In B
-     (whitespace-only) these are scored and shown as `customer` rows alongside
-     whitespace so you can confirm your known-good accounts still rank highly.
-     Strongly encouraged.
+     `lifecyclestage='customer'`, a closed-won `Opportunity`). Strongly
+     encouraged in ALL modes. **When asking for this input, explain it in
+     plain language — internally it's called the "gold set", which confuses
+     users, so spell out what it is and how it's used.** Say something like:
+     > "Your existing customers act as the **answer key** for the score.
+     > They're used in three ways: (1) the **Evaluation tab** checks that
+     > known customers rank near the top — if they don't, the weights are
+     > wrong; (2) the **weight fit** nudges the starting sliders toward
+     > whatever separates your customers from everyone else; (3) the
+     > **industry/attribute boosts** are calibrated from which segments your
+     > customers concentrate in. Customers are never filtered out or treated
+     > as prospects — they're the measuring stick."
+     In B (whitespace-only) they are also scored and shown as `customer` rows
+     alongside whitespace so the user can confirm known-good accounts still
+     rank highly. Avoid the bare term "gold set" in user-facing messages;
+     if you use it, define it inline ("gold set = your closed-won customers,
+     the known-good examples the score is checked against").
 
    Resolve overlaps so **each account lands in exactly one `account_category`**,
    precedence customer > allocated > unallocated:
@@ -528,7 +596,12 @@ Goal: collect the input required to produce a first version of the score. Please
 
    **Universe filters (modes B/C) → `spec.universe_filters`.** Set the bounds on
    the whitespace pool (whitespace rows only — your CRM accounts are never
-   filtered). Two kinds — handle them differently:
+   filtered). **Before asking the user to confirm, ALWAYS print the complete
+   proposed filter block in the message** — `min_employees`, the country
+   whitelist (or "global"), every hard-exclude tag by name, the
+   professional-services switch, and every excluded industry by display name.
+   This applies even when reusing a prior run's filters ("same as last time"
+   is not a confirmation — re-list them). Two kinds — handle them differently:
 
    - **Cheap, near-universal org-type / firmographic bounds** (the ranker pushes
      these into the query, so they cost nothing): `min_employees` (default
@@ -631,7 +704,7 @@ Resolve every ICP term to its canonical Sumble slug/name in ONE call to the
 lookup helper (it uses the v6 lookup endpoints; needs `SUMBLE_API_KEY`):
 
 ```bash
-python <skill_dir>/template/_build/lookup.py --technologies clay,common-room,zoominfo --projects "generative ai,digital transformation" --titles "Machine Learning,AI Engineer,Revenue Operations"
+python3 <skill_dir>/template/_build/lookup.py --technologies clay,common-room,zoominfo --projects "generative ai,digital transformation" --titles "Machine Learning,AI Engineer,Revenue Operations"
 ```
 
 It prints `{technologies, projects, job_functions}`, each item `{input, slug,
@@ -766,7 +839,8 @@ live in the scripts.
 **Credit cost** ≈ `(1 + paid-attributes + Σ entity-metrics)` per matched org
 (~16 for a typical ICP). Surface the estimate before running a large sample.
 
-> If the key isn't set yet, run `! python <skill_dir>/template/_build/set_api_key.py`
+> If the key isn't set yet, run `! python3 <skill_dir>/template/_build/set_api_key.py`
+> (no Python? `! sh <skill_dir>/template/_build/set_api_key.sh` does the same)
 > first (prompts + saves it), or run the two `python` commands themselves via
 > `! python …` so they execute in the user's terminal.
 
@@ -781,8 +855,8 @@ cp <skill_dir>/template/score_sheet.py     <output_root>/score_sheet.py
 cp <skill_dir>/template/score_accounts.py  <output_root>/score_accounts.py
 cp <skill_dir>/template/README.md          <output_root>/README.md
 cp <skill_dir>/template/static/*           <output_root>/static/
-python <skill_dir>/template/_build/build_weights.py --raw <output_root>/_raw
-python <skill_dir>/template/_build/fit_weights.py --raw <output_root>/_raw
+python3 <skill_dir>/template/_build/build_weights.py --raw <output_root>/_raw
+python3 <skill_dir>/template/_build/fit_weights.py --raw <output_root>/_raw
 ```
 
 → `<output_root>/account-scoring-weights.json`. `build_weights.py` renders
@@ -807,16 +881,124 @@ let the user start it in a terminal where it stays up.
 
 ```bash
 cd ./tmp/account_scoring/<company>
-python app.py
+python3 app.py
 # open http://localhost:8001 in your browser
 ```
 
 No `pip install`, no virtualenv, no extra setup — `app.py` is stdlib-only
-and runs on any Python 3.10+. Override the port via `python app.py 9001`
-or `PORT=9001 python app.py`.
+and runs on any Python 3.10+. Override the port via `python3 app.py 9001`
+or `PORT=9001 python3 app.py`.
 
 To score a larger list once weights are tuned, hand
 `account-scoring-weights.json` to the separate scoring skill.
+
+---
+
+### Stage 5 — Whitespace filtering (optional; ALWAYS offer it after handover)
+
+**Right after printing the Stage 4 run instructions (modes B/C only — skip when
+there is no whitespace), follow up with ONE question about filtering the
+whitespace down.** Lead by encouraging the user to LOOK FIRST: open the app,
+eyeball the top whitespace (filter chips → Whitespace), and only then decide
+whether a filter is needed — the ranked list is often good enough as-is, and
+seeing it tells them WHICH failure mode to filter (wrong industry? too small?
+services shops?). Offer three paths:
+
+1. **Look first (recommended default)** — revisit filtering after they've
+   browsed the sheet; remind them it's available any time.
+2. **Criteria filter (free, instant)** — rules over columns already in
+   `data.csv` (employee count, HQ country, industry, tags, any signal). Write a
+   rules JSON and run `--mode criteria`. Good for crisp cuts the data already
+   expresses.
+3. **LLM / web-research filter** — one call per whitespace row answering "does
+   this company fit the ICP?" against a ~200-word ICP prompt. Output per row:
+   boolean + one-sentence reason.
+
+The LLM path is **provider-agnostic** — `template/_build/filter_whitespace.py`
+takes `--provider anthropic | openai | gemini | parallel | exa`, each behind the
+same interface (the user brings their OWN API key for whichever they have):
+
+| Provider | Default engine | ~cost / 1K rows | Notes |
+|---|---|---|---|
+| `anthropic` | claude-sonnet-4-6 + web search | ~$35 | $10/1K searches + tokens |
+| `openai` | gpt-5-mini + web_search | ~$17 | $10/1K calls + tokens |
+| `gemini` | gemini-2.5-flash + grounding | ~$38 | 1,500 grounded/day free, then $35/1K; Google ToS limits storing grounded output |
+| `parallel` | Task API `base` processor | ~$10 | research + structured output in one call; `lite`/`core` swap quality/cost |
+| `exa` | /answer | ~$5 | cheapest; answer quality below the LLM+search options |
+
+Mechanics (the script handles all of it):
+- Targets only `account_category` starting with `whitespace`, ordered by current
+  rank. **Recommend `--top 2000`** (or the user's working depth) — filtering the
+  tail of 19K rows is wasted spend.
+- Keys (portable — assume nothing about the user's machine). Resolution
+  order: `--api-key` → `--key-cmd "<command>"` (stdout is the key; works with
+  any secret manager: `gcloud secrets versions access`, `op read`,
+  `aws secretsmanager get-secret-value`, `pass show`) → the provider's
+  standard env var → `--env-file` → `~/.config/sumble/<provider>_api_key`.
+  **Default flow for users without a secret manager:** have them run
+  `python3 <skill_dir>/template/_build/filter_whitespace.py --provider <p>
+  --set-key` ONCE in their terminal — hidden input (getpass), saved chmod 600,
+  found automatically on every later run. Never ask the user to paste a key
+  into chat. If no key resolves, the script itself prints where to get one
+  and the `--set-key` one-liner.
+- `--estimate-only` prints cost/time; the run confirms before spending unless
+  `--yes`. Surface the estimate to the user BEFORE running.
+- Checkpointed to `_raw/ws_filter_results.jsonl` — interrupt-safe, re-run
+  resumes, errors retry on re-run.
+- Output: `ws_fit` / `ws_fit_reason` / `ws_filter_provider` columns in
+  `data.csv` + score.csv (rows are FLAGGED in the data, never dropped), plus
+  `llm_fit` / `llm_unfit` appended to `tags`. The app reacts automatically
+  once classified rows exist:
+  - **The Whitespace chip splits into THREE chips** — "WS · unprocessed"
+    (whitespace rows the filter never judged, e.g. below the --top depth; ON
+    by default), "WS · ICP fit" (ON by default, green) and "WS · not a fit"
+    (OFF by default, red) — so after the filter runs the sheet opens
+    PRE-PRUNED: rows the LLM judged not-a-fit are hidden until that chip is
+    toggled on. The three are ordinary category chips (same multi-select
+    mechanics, counts, and "All" reset); CRM categories are untouched.
+  - **Breakdown verdict box** — clicking a classified row shows
+    "✓ ICP fit / ✗ Not an ICP fit", the provider, and the model's
+    one-sentence reason, so a rep sees WHY.
+  Restart `app.py` to pick up new columns.
+- **The fit definition is the USER'S, not yours — never run the LLM filter on
+  a prompt the user hasn't approved.** Mandatory sequence before any paid run:
+  1. **Ask the user, in their own words:** "What makes a company a clear FIT
+     for this filter, and what makes one a clear NON-fit?" (one question; give
+     2-3 example criteria from their spec as a starting point).
+  2. **Draft** the ~200-word prompt from their answer + the spec (what the
+     company sells, explicit fit rules, explicit non-fit rules) and write it
+     to `_raw/ws_filter_prompt.txt`.
+  3. **Print the ENTIRE prompt verbatim in the message** and get an explicit
+     yes/edit (the Stage 1 Confirmation rule applies here too — never
+     summarize it or hide it behind "as drafted"). Loop on edits.
+  4. Only then show the cost/time estimate and run.
+  The script records a hash of the prompt next to the checkpoint: if the
+  prompt later changes, old verdicts are auto-archived
+  (`ws_filter_results.jsonl.stale`) and the run reclassifies from scratch —
+  verdicts from two different fit definitions never mix.
+
+```bash
+# estimate, then run (example: OpenAI on the top 2,000 whitespace rows)
+python3 <skill_dir>/template/_build/filter_whitespace.py --dir <output_root> \
+  --provider openai --top 2000 --prompt-file <output_root>/_raw/ws_filter_prompt.txt \
+  --estimate-only
+python3 <skill_dir>/template/_build/filter_whitespace.py --dir <output_root> \
+  --provider openai --top 2000 --prompt-file <output_root>/_raw/ws_filter_prompt.txt --yes
+
+# criteria mode (free): rules JSON of {column, op, value[, label]}
+python3 <skill_dir>/template/_build/filter_whitespace.py --dir <output_root> \
+  --mode criteria --rules <output_root>/_raw/ws_filter_rules.json
+```
+
+Quality guidance when the user asks which provider: evidence beats model — the
+script already packs the row's firmographics (name, domain, industry, size,
+tags) into the prompt and tells the model to trust the DOMAIN (avoids
+same-name-company errors). `anthropic`/`openai` give the best
+search-and-reason quality; `parallel` is the best no-LLM-key option
+(structured research API); `gemini` is cheapest at scale if paced under the
+free grounding tier and its storage ToS is acceptable; `exa` is the budget
+sanity-check. Calibrate before trusting: if gold/customer rows exist, spot-run
+the filter on ~20 of them — they should nearly all come back `fit`.
 
 ---
 
