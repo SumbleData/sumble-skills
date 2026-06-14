@@ -21,14 +21,19 @@ No pip install, no venv — stdlib only, Python 3.10+. Custom port:
 
 ## Reviewing
 
-- **Accept** a finding when the suggested change is right; **Reject** when it
-  isn't; **Skip** to defer. Every click saves to `decisions.json` immediately.
-- In a duplicate cluster, the **Keep** radio picks the surviving record (the
-  app pre-selects a sensible default: owned > customer > most complete >
-  oldest).
+- For **hierarchy** and **parents-not-in-CRM** findings: **Accept** when the
+  suggested change is right, **Reject** when it isn't, **Skip** to defer.
+- For a **duplicate cluster** there is no accept/reject/skip — the per-record
+  actions are the decision. Mark one record **Primary** (the survivor); the
+  others then default to **Merge** (fold into the primary), and you switch any
+  to **Delete** to remove it instead. Until a primary is picked only "Primary"
+  is available (the suggested primary is hinted: owned > customer > biggest
+  CRM footprint > most complete > oldest). **Not a duplicate** dismisses a
+  false match. Every click saves to `decisions.json` immediately.
 - **Export actions.csv** writes one row per CRM change implied by your
   accepted findings:
   - `merge` — fold `account_id` into `target_account_id`
+  - `delete` — delete `account_id` (a duplicate flagged for removal)
   - `set_parent` — set `target_account_id` as the parent of `account_id`
   - `create_parent_and_link` — create the suggested parent account, then
     parent `account_id` under it

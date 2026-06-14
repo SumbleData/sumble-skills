@@ -1,0 +1,1443 @@
+{
+  "schema_version": 1,
+  "_comment": "Account-scoring config \u2014 generated deterministically from _raw/spec.json by template/_build/build_weights.py. Every Sumble signal's source.api points at POST /v6/organizations with the exact select slice; score_accounts.py reproduces each column from it. Slider changes auto-save to this file in place.",
+  "provenance_guide": {
+    "endpoint": "POST https://api.sumble.com/v6/organizations",
+    "source_kinds": {
+      "sumble_api": "one entity/attribute on /v6/organizations (source.api).",
+      "sumble_derived": "arithmetic over endpoint inputs (source.derivation).",
+      "first_party": "joined in by account; not from Sumble."
+    },
+    "api_block": "source.api = {endpoint, select_entity|select_attribute, read, extract}. select_entity is the exact select.entities[] item to send; read is the metric to take off the EntityResult. since entities are a 3-month window the scorer recomputes to (run date \u2212 3 months).",
+    "api_supported": "true if score_accounts.py can reproduce the column from the public API. false (tech concentration) stays in the app for tuning but is dropped + weight-renormalised by the portable scorer."
+  },
+  "saved_at": "2026-06-11T15:48:05+00:00",
+  "customer_name": "Sumble \u2014 Scoring",
+  "score_label": "Account Score",
+  "id_column": "org_id",
+  "name_column": "name",
+  "slug_column": "slug",
+  "sumble_url_base": "https://sumble.com/orgs/",
+  "data_csv": "data.csv",
+  "table_columns": [
+    "name",
+    "url",
+    "employee_count_int"
+  ],
+  "data_sources": {
+    "crm_list": {
+      "source": "Users DB: account_scores domains UNION customer_organizations customer_id=17 domains",
+      "size": 5022
+    },
+    "owner_list": {
+      "source": "customer_organizations customer_id=17 extra_content Owner.Name (excl. Insights Integration)",
+      "size": 1212
+    },
+    "gold_list": {
+      "source": "REAL closed-won: customer_organizations customer_id=17 is_customer_account=true",
+      "size": 35
+    }
+  },
+  "sections": {
+    "size": {
+      "label": "Size (how big is the opportunity)",
+      "default_pct": 41.683
+    },
+    "growth_momentum": {
+      "label": "Growth & momentum (is now the time)",
+      "default_pct": 23.1596
+    },
+    "adoption": {
+      "label": "Adoption (are they already using Sumble)",
+      "default_pct": 22.5339
+    },
+    "concentration": {
+      "label": "Concentration (how strong / focused the fit)",
+      "default_pct": 12.6235
+    }
+  },
+  "categories": {
+    "icp_persona_count": {
+      "label": "Persona headcount",
+      "section": "size",
+      "default_pct": 38.8724
+    },
+    "relevant_tech_team_count": {
+      "label": "Tech teams",
+      "section": "size",
+      "default_pct": 27.0309
+    },
+    "intent_project_tech_count": {
+      "label": "Project \u00d7 tech jobs (recent)",
+      "section": "size",
+      "default_pct": 14.3947
+    },
+    "intent_project_persona_count": {
+      "label": "Project \u00d7 persona jobs (recent)",
+      "section": "size",
+      "default_pct": 9.5964
+    },
+    "funding": {
+      "label": "Funding (total raised)",
+      "section": "size",
+      "default_pct": 10.1056
+    },
+    "icp_persona_concentration": {
+      "label": "Persona concentration",
+      "section": "concentration",
+      "default_pct": 60.0
+    },
+    "relevant_tech_team_concentration": {
+      "label": "Tech team concentration",
+      "section": "concentration",
+      "default_pct": 40.0
+    },
+    "icp_persona_growth": {
+      "label": "Persona growth (YoY)",
+      "section": "growth_momentum",
+      "default_pct": 76.9231
+    },
+    "funding_momentum": {
+      "label": "Funding momentum",
+      "section": "growth_momentum",
+      "default_pct": 23.0769
+    },
+    "plg_usage": {
+      "label": "PLG usage",
+      "section": "adoption",
+      "default_pct": 100.0
+    }
+  },
+  "signals": {
+    "icp_persona_count_sales-development-representative": {
+      "label": "SDR headcount",
+      "column": "sales-development-representative_people",
+      "category": "icp_persona_count",
+      "transform": "log",
+      "default_within": 20.82,
+      "p99": 5.159055,
+      "api_supported": true,
+      "source": {
+        "why": "SDR is a target persona \u2014 more SDRs = bigger ACV.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Sales Development Representative",
+            "metrics": [
+              "people_count"
+            ]
+          },
+          "read": "people_count",
+          "extract": "organizations[].entities[type='job_function',term='Sales Development Representative'].people_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/people",
+        "filters": {
+          "job_function": [
+            "Sales Development Representative"
+          ]
+        }
+      }
+    },
+    "icp_persona_concentration_sales-development-representative": {
+      "label": "SDR % of company",
+      "column": "sales-development-representative_pct",
+      "category": "icp_persona_concentration",
+      "transform": "linear",
+      "default_within": 20.82,
+      "p99": 25.0,
+      "api_supported": true,
+      "source": {
+        "why": "Concentration filters out big orgs with a SDR per division.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * sales-development-representative_people / employee_count_int",
+          "inputs": [
+            {
+              "name": "sales-development-representative_people",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "job_function",
+                "term": "Sales Development Representative",
+                "metrics": [
+                  "people_count"
+                ]
+              },
+              "read": "people_count"
+            },
+            {
+              "name": "employee_count_int",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "employee_count",
+              "read": "exact org headcount (employee_count is an integer; legacy band strings map to a midpoint)"
+            }
+          ]
+        }
+      }
+    },
+    "icp_persona_growth_sales-development-representative": {
+      "label": "SDR YoY growth",
+      "column": "sales-development-representative_growth_yoy",
+      "category": "icp_persona_growth",
+      "transform": "linear",
+      "default_within": 20.82,
+      "p99": 5.0,
+      "api_supported": true,
+      "source": {
+        "why": "Persona growth is a buying-window proxy \u2014 orgs growing SDR are scaling that function.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Sales Development Representative",
+            "metrics": [
+              "people_count_growth_1y"
+            ]
+          },
+          "read": "people_count_growth_1y",
+          "extract": "organizations[].entities[type='job_function',term='Sales Development Representative'].people_count_growth_1y",
+          "transform_note": "endpoint returns a percent (e.g. 50.0); data.csv stores it as a ratio (\u00d7 0.01)."
+        }
+      },
+      "sumble_link": {
+        "path": "/trends/job_functions_people",
+        "filters": {
+          "job_function": [
+            "Sales Development Representative"
+          ]
+        }
+      }
+    },
+    "icp_persona_count_sales": {
+      "label": "Sales headcount",
+      "column": "sales_people",
+      "category": "icp_persona_count",
+      "transform": "log",
+      "default_within": 20.4,
+      "p99": 8.232174,
+      "api_supported": true,
+      "source": {
+        "why": "Sales is a target persona \u2014 more Saless = bigger ACV.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Sales",
+            "metrics": [
+              "people_count"
+            ]
+          },
+          "read": "people_count",
+          "extract": "organizations[].entities[type='job_function',term='Sales'].people_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/people",
+        "filters": {
+          "job_function": [
+            "Sales"
+          ]
+        }
+      }
+    },
+    "icp_persona_concentration_sales": {
+      "label": "Sales % of company",
+      "column": "sales_pct",
+      "category": "icp_persona_concentration",
+      "transform": "linear",
+      "default_within": 20.4,
+      "p99": 66.298,
+      "api_supported": true,
+      "source": {
+        "why": "Concentration filters out big orgs with a Sales per division.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * sales_people / employee_count_int",
+          "inputs": [
+            {
+              "name": "sales_people",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "job_function",
+                "term": "Sales",
+                "metrics": [
+                  "people_count"
+                ]
+              },
+              "read": "people_count"
+            },
+            {
+              "name": "employee_count_int",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "employee_count",
+              "read": "exact org headcount (employee_count is an integer; legacy band strings map to a midpoint)"
+            }
+          ]
+        }
+      }
+    },
+    "icp_persona_growth_sales": {
+      "label": "Sales YoY growth",
+      "column": "sales_growth_yoy",
+      "category": "icp_persona_growth",
+      "transform": "linear",
+      "default_within": 20.4,
+      "p99": 5.0,
+      "api_supported": true,
+      "source": {
+        "why": "Persona growth is a buying-window proxy \u2014 orgs growing Sales are scaling that function.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Sales",
+            "metrics": [
+              "people_count_growth_1y"
+            ]
+          },
+          "read": "people_count_growth_1y",
+          "extract": "organizations[].entities[type='job_function',term='Sales'].people_count_growth_1y",
+          "transform_note": "endpoint returns a percent (e.g. 50.0); data.csv stores it as a ratio (\u00d7 0.01)."
+        }
+      },
+      "sumble_link": {
+        "path": "/trends/job_functions_people",
+        "filters": {
+          "job_function": [
+            "Sales"
+          ]
+        }
+      }
+    },
+    "icp_persona_count_account-executive": {
+      "label": "Account Executive headcount",
+      "column": "account-executive_people",
+      "category": "icp_persona_count",
+      "transform": "log",
+      "default_within": 19.99,
+      "p99": 6.80017,
+      "api_supported": true,
+      "source": {
+        "why": "Account Executive is a target persona \u2014 more Account Executives = bigger ACV.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Account Executive",
+            "metrics": [
+              "people_count"
+            ]
+          },
+          "read": "people_count",
+          "extract": "organizations[].entities[type='job_function',term='Account Executive'].people_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/people",
+        "filters": {
+          "job_function": [
+            "Account Executive"
+          ]
+        }
+      }
+    },
+    "icp_persona_concentration_account-executive": {
+      "label": "Account Executive % of company",
+      "column": "account-executive_pct",
+      "category": "icp_persona_concentration",
+      "transform": "linear",
+      "default_within": 19.99,
+      "p99": 35.0,
+      "api_supported": true,
+      "source": {
+        "why": "Concentration filters out big orgs with a Account Executive per division.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * account-executive_people / employee_count_int",
+          "inputs": [
+            {
+              "name": "account-executive_people",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "job_function",
+                "term": "Account Executive",
+                "metrics": [
+                  "people_count"
+                ]
+              },
+              "read": "people_count"
+            },
+            {
+              "name": "employee_count_int",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "employee_count",
+              "read": "exact org headcount (employee_count is an integer; legacy band strings map to a midpoint)"
+            }
+          ]
+        }
+      }
+    },
+    "icp_persona_growth_account-executive": {
+      "label": "Account Executive YoY growth",
+      "column": "account-executive_growth_yoy",
+      "category": "icp_persona_growth",
+      "transform": "linear",
+      "default_within": 19.99,
+      "p99": 5.0,
+      "api_supported": true,
+      "source": {
+        "why": "Persona growth is a buying-window proxy \u2014 orgs growing Account Executive are scaling that function.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Account Executive",
+            "metrics": [
+              "people_count_growth_1y"
+            ]
+          },
+          "read": "people_count_growth_1y",
+          "extract": "organizations[].entities[type='job_function',term='Account Executive'].people_count_growth_1y",
+          "transform_note": "endpoint returns a percent (e.g. 50.0); data.csv stores it as a ratio (\u00d7 0.01)."
+        }
+      },
+      "sumble_link": {
+        "path": "/trends/job_functions_people",
+        "filters": {
+          "job_function": [
+            "Account Executive"
+          ]
+        }
+      }
+    },
+    "icp_persona_count_revenue-operations": {
+      "label": "Revenue Operations headcount",
+      "column": "revenue-operations_people",
+      "category": "icp_persona_count",
+      "transform": "log",
+      "default_within": 19.59,
+      "p99": 5.638355,
+      "api_supported": true,
+      "source": {
+        "why": "Revenue Operations is a target persona \u2014 more Revenue Operationss = bigger ACV.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Revenue Operations",
+            "metrics": [
+              "people_count"
+            ]
+          },
+          "read": "people_count",
+          "extract": "organizations[].entities[type='job_function',term='Revenue Operations'].people_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/people",
+        "filters": {
+          "job_function": [
+            "Revenue Operations"
+          ]
+        }
+      }
+    },
+    "icp_persona_concentration_revenue-operations": {
+      "label": "Revenue Operations % of company",
+      "column": "revenue-operations_pct",
+      "category": "icp_persona_concentration",
+      "transform": "linear",
+      "default_within": 19.59,
+      "p99": 11.765,
+      "api_supported": true,
+      "source": {
+        "why": "Concentration filters out big orgs with a Revenue Operations per division.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * revenue-operations_people / employee_count_int",
+          "inputs": [
+            {
+              "name": "revenue-operations_people",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "job_function",
+                "term": "Revenue Operations",
+                "metrics": [
+                  "people_count"
+                ]
+              },
+              "read": "people_count"
+            },
+            {
+              "name": "employee_count_int",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "employee_count",
+              "read": "exact org headcount (employee_count is an integer; legacy band strings map to a midpoint)"
+            }
+          ]
+        }
+      }
+    },
+    "icp_persona_growth_revenue-operations": {
+      "label": "Revenue Operations YoY growth",
+      "column": "revenue-operations_growth_yoy",
+      "category": "icp_persona_growth",
+      "transform": "linear",
+      "default_within": 19.59,
+      "p99": 4.0,
+      "api_supported": true,
+      "source": {
+        "why": "Persona growth is a buying-window proxy \u2014 orgs growing Revenue Operations are scaling that function.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Revenue Operations",
+            "metrics": [
+              "people_count_growth_1y"
+            ]
+          },
+          "read": "people_count_growth_1y",
+          "extract": "organizations[].entities[type='job_function',term='Revenue Operations'].people_count_growth_1y",
+          "transform_note": "endpoint returns a percent (e.g. 50.0); data.csv stores it as a ratio (\u00d7 0.01)."
+        }
+      },
+      "sumble_link": {
+        "path": "/trends/job_functions_people",
+        "filters": {
+          "job_function": [
+            "Revenue Operations"
+          ]
+        }
+      }
+    },
+    "icp_persona_count_marketing": {
+      "label": "Marketing headcount",
+      "column": "marketing_people",
+      "category": "icp_persona_count",
+      "transform": "log",
+      "default_within": 19.2,
+      "p99": 7.080026,
+      "api_supported": true,
+      "source": {
+        "why": "Marketing is a target persona \u2014 more Marketings = bigger ACV.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Marketing",
+            "metrics": [
+              "people_count"
+            ]
+          },
+          "read": "people_count",
+          "extract": "organizations[].entities[type='job_function',term='Marketing'].people_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/people",
+        "filters": {
+          "job_function": [
+            "Marketing"
+          ]
+        }
+      }
+    },
+    "icp_persona_concentration_marketing": {
+      "label": "Marketing % of company",
+      "column": "marketing_pct",
+      "category": "icp_persona_concentration",
+      "transform": "linear",
+      "default_within": 19.2,
+      "p99": 27.273,
+      "api_supported": true,
+      "source": {
+        "why": "Concentration filters out big orgs with a Marketing per division.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * marketing_people / employee_count_int",
+          "inputs": [
+            {
+              "name": "marketing_people",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "job_function",
+                "term": "Marketing",
+                "metrics": [
+                  "people_count"
+                ]
+              },
+              "read": "people_count"
+            },
+            {
+              "name": "employee_count_int",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "employee_count",
+              "read": "exact org headcount (employee_count is an integer; legacy band strings map to a midpoint)"
+            }
+          ]
+        }
+      }
+    },
+    "icp_persona_growth_marketing": {
+      "label": "Marketing YoY growth",
+      "column": "marketing_growth_yoy",
+      "category": "icp_persona_growth",
+      "transform": "linear",
+      "default_within": 19.2,
+      "p99": 4.0,
+      "api_supported": true,
+      "source": {
+        "why": "Persona growth is a buying-window proxy \u2014 orgs growing Marketing are scaling that function.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "job_function",
+            "term": "Marketing",
+            "metrics": [
+              "people_count_growth_1y"
+            ]
+          },
+          "read": "people_count_growth_1y",
+          "extract": "organizations[].entities[type='job_function',term='Marketing'].people_count_growth_1y",
+          "transform_note": "endpoint returns a percent (e.g. 50.0); data.csv stores it as a ratio (\u00d7 0.01)."
+        }
+      },
+      "sumble_link": {
+        "path": "/trends/job_functions_people",
+        "filters": {
+          "job_function": [
+            "Marketing"
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_count_gtm-enrichment-and-signals": {
+      "label": "Teams using GTM Enrichment & Signals",
+      "column": "gtm-enrichment-and-signals_teams",
+      "category": "relevant_tech_team_count",
+      "transform": "log",
+      "default_within": 22.55,
+      "p99": 3.401197,
+      "api_supported": true,
+      "source": {
+        "why": "Teams using the GTM Enrichment & Signals category prove active, in-production adoption.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "technology_category",
+            "term": "gtm-enrichment-and-signals",
+            "metrics": [
+              "team_count"
+            ]
+          },
+          "read": "team_count",
+          "extract": "organizations[].entities[type='technology_category',term='gtm-enrichment-and-signals'].team_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/teams",
+        "filters": {
+          "technology_category": [
+            "gtm-enrichment-and-signals"
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_concentration_gtm-enrichment-and-signals": {
+      "label": "GTM Enrichment & Signals team share",
+      "column": "gtm-enrichment-and-signals_team_pct",
+      "category": "relevant_tech_team_concentration",
+      "transform": "linear",
+      "default_within": 22.55,
+      "p99": 100.0,
+      "api_supported": true,
+      "source": {
+        "why": "% of teams using GTM Enrichment & Signals signals broad vs one-team adoption.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * gtm-enrichment-and-signals_teams / teams_count",
+          "inputs": [
+            {
+              "name": "gtm-enrichment-and-signals_teams",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "technology_category",
+                "term": "gtm-enrichment-and-signals",
+                "metrics": [
+                  "team_count"
+                ]
+              },
+              "read": "team_count"
+            },
+            {
+              "name": "teams_count",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "teams_count",
+              "read": "org-total team count (concentration denominator)"
+            }
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_count_account-based-marketing-platforms": {
+      "label": "Teams using ABM Platforms",
+      "column": "account-based-marketing-platforms_teams",
+      "category": "relevant_tech_team_count",
+      "transform": "log",
+      "default_within": 22.1,
+      "p99": 3.295837,
+      "api_supported": true,
+      "source": {
+        "why": "Teams using the ABM Platforms category prove active, in-production adoption.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "technology_category",
+            "term": "account-based-marketing-platforms",
+            "metrics": [
+              "team_count"
+            ]
+          },
+          "read": "team_count",
+          "extract": "organizations[].entities[type='technology_category',term='account-based-marketing-platforms'].team_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/teams",
+        "filters": {
+          "technology_category": [
+            "account-based-marketing-platforms"
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_concentration_account-based-marketing-platforms": {
+      "label": "ABM Platforms team share",
+      "column": "account-based-marketing-platforms_team_pct",
+      "category": "relevant_tech_team_concentration",
+      "transform": "linear",
+      "default_within": 22.1,
+      "p99": 100.0,
+      "api_supported": true,
+      "source": {
+        "why": "% of teams using ABM Platforms signals broad vs one-team adoption.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * account-based-marketing-platforms_teams / teams_count",
+          "inputs": [
+            {
+              "name": "account-based-marketing-platforms_teams",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "technology_category",
+                "term": "account-based-marketing-platforms",
+                "metrics": [
+                  "team_count"
+                ]
+              },
+              "read": "team_count"
+            },
+            {
+              "name": "teams_count",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "teams_count",
+              "read": "org-total team count (concentration denominator)"
+            }
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_count_sales-and-lead-generation-tools": {
+      "label": "Teams using Sales & Lead Gen Tools",
+      "column": "sales-and-lead-generation-tools_teams",
+      "category": "relevant_tech_team_count",
+      "transform": "log",
+      "default_within": 21.65,
+      "p99": 3.78419,
+      "api_supported": true,
+      "source": {
+        "why": "Teams using the Sales & Lead Gen Tools category prove active, in-production adoption.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "technology_category",
+            "term": "sales-and-lead-generation-tools",
+            "metrics": [
+              "team_count"
+            ]
+          },
+          "read": "team_count",
+          "extract": "organizations[].entities[type='technology_category',term='sales-and-lead-generation-tools'].team_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/teams",
+        "filters": {
+          "technology_category": [
+            "sales-and-lead-generation-tools"
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_concentration_sales-and-lead-generation-tools": {
+      "label": "Sales & Lead Gen Tools team share",
+      "column": "sales-and-lead-generation-tools_team_pct",
+      "category": "relevant_tech_team_concentration",
+      "transform": "linear",
+      "default_within": 21.65,
+      "p99": 100.0,
+      "api_supported": true,
+      "source": {
+        "why": "% of teams using Sales & Lead Gen Tools signals broad vs one-team adoption.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * sales-and-lead-generation-tools_teams / teams_count",
+          "inputs": [
+            {
+              "name": "sales-and-lead-generation-tools_teams",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "technology_category",
+                "term": "sales-and-lead-generation-tools",
+                "metrics": [
+                  "team_count"
+                ]
+              },
+              "read": "team_count"
+            },
+            {
+              "name": "teams_count",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "teams_count",
+              "read": "org-total team count (concentration denominator)"
+            }
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_count_hightouch": {
+      "label": "Teams using Hightouch",
+      "column": "hightouch_teams",
+      "category": "relevant_tech_team_count",
+      "transform": "log",
+      "default_within": 21.22,
+      "p99": 2.484907,
+      "api_supported": true,
+      "source": {
+        "why": "Teams using the Hightouch tool prove active, in-production adoption.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "technology",
+            "term": "hightouch",
+            "metrics": [
+              "team_count"
+            ]
+          },
+          "read": "team_count",
+          "extract": "organizations[].entities[type='technology',term='hightouch'].team_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/teams",
+        "filters": {
+          "technology": [
+            "hightouch"
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_concentration_hightouch": {
+      "label": "Hightouch team share",
+      "column": "hightouch_team_pct",
+      "category": "relevant_tech_team_concentration",
+      "transform": "linear",
+      "default_within": 21.22,
+      "p99": 100.0,
+      "api_supported": true,
+      "source": {
+        "why": "% of teams using Hightouch signals broad vs one-team adoption.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * hightouch_teams / teams_count",
+          "inputs": [
+            {
+              "name": "hightouch_teams",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "technology",
+                "term": "hightouch",
+                "metrics": [
+                  "team_count"
+                ]
+              },
+              "read": "team_count"
+            },
+            {
+              "name": "teams_count",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "teams_count",
+              "read": "org-total team count (concentration denominator)"
+            }
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_count_d-b": {
+      "label": "Teams using D&B",
+      "column": "d-b_teams",
+      "category": "relevant_tech_team_count",
+      "transform": "log",
+      "default_within": 12.48,
+      "p99": 2.833213,
+      "api_supported": true,
+      "source": {
+        "why": "Teams using the D&B tool prove active, in-production adoption.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "technology",
+            "term": "d-b",
+            "metrics": [
+              "team_count"
+            ]
+          },
+          "read": "team_count",
+          "extract": "organizations[].entities[type='technology',term='d-b'].team_count"
+        }
+      },
+      "sumble_link": {
+        "path": "/teams",
+        "filters": {
+          "technology": [
+            "d-b"
+          ]
+        }
+      }
+    },
+    "relevant_tech_team_concentration_d-b": {
+      "label": "D&B team share",
+      "column": "d-b_team_pct",
+      "category": "relevant_tech_team_concentration",
+      "transform": "linear",
+      "default_within": 12.48,
+      "p99": 150.0,
+      "api_supported": true,
+      "source": {
+        "why": "% of teams using D&B signals broad vs one-team adoption.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "100 * d-b_teams / teams_count",
+          "inputs": [
+            {
+              "name": "d-b_teams",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_entity": {
+                "type": "technology",
+                "term": "d-b",
+                "metrics": [
+                  "team_count"
+                ]
+              },
+              "read": "team_count"
+            },
+            {
+              "name": "teams_count",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "teams_count",
+              "read": "org-total team count (concentration denominator)"
+            }
+          ]
+        }
+      }
+    },
+    "funding_total_raised": {
+      "label": "Total funding raised",
+      "column": "funding_total_raised",
+      "category": "funding",
+      "transform": "log",
+      "default_within": 100.0,
+      "p99": 21.556175,
+      "api_supported": true,
+      "source": {
+        "why": "More capital raised = a bigger budget and a faster hiring ramp \u2014 more interviews to run.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "funding_total_raised",
+          "inputs": [
+            {
+              "name": "funding_total_raised",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "funding_total_raised",
+              "read": "total funding raised across all rounds, whole USD"
+            }
+          ]
+        }
+      }
+    },
+    "funding_days_since_last_round": {
+      "label": "Days since last financing",
+      "column": "funding_days_since_last_round",
+      "category": "funding_momentum",
+      "transform": "recency",
+      "default_within": 50.0,
+      "p99": 2148.0,
+      "api_supported": true,
+      "source": {
+        "why": "A recent financing round means fresh capital and an imminent hiring ramp \u2014 an open buying window. Score decays as the last round ages; never-financed scores 0.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "days between funding_last_round_date and today, recency-scored (fewer days = higher; none = 0)",
+          "inputs": [
+            {
+              "name": "funding_last_round_date",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "funding_last_round_date",
+              "read": "date of the latest funding round (ISO YYYY-MM-DD)"
+            }
+          ]
+        }
+      }
+    },
+    "funding_last_round_raised": {
+      "label": "Latest round size",
+      "column": "funding_last_round_raised",
+      "category": "funding_momentum",
+      "transform": "log",
+      "default_within": 50.0,
+      "p99": 20.671973,
+      "api_supported": true,
+      "source": {
+        "why": "A large most-recent round means fresh capital \u2014 an active hiring/buying window.",
+        "kind": "sumble_derived",
+        "derivation": {
+          "formula": "funding_last_round_raised",
+          "inputs": [
+            {
+              "name": "funding_last_round_raised",
+              "endpoint": "POST https://api.sumble.com/v6/organizations",
+              "select_attribute": "funding_last_round_raised",
+              "read": "amount raised in the latest funding round, whole USD"
+            }
+          ]
+        }
+      }
+    },
+    "intent_project_tech_count_generative_ai": {
+      "label": "Generative AI \u00d7 ICP tech jobs (3mo)",
+      "column": "generative_ai_x_relevant_tech_jobposts",
+      "category": "intent_project_tech_count",
+      "transform": "log",
+      "default_within": 50.0,
+      "p99": 1.609438,
+      "api_supported": true,
+      "source": {
+        "why": "Recent jobs hitting Generative AI AND an ICP tool signal an active, in-flight initiative \u2014 open buying window.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "advanced_query",
+            "term": "project EQ 'generative_ai' AND (technology IN ('hightouch', 'd-b') OR technology_category IN ('gtm-enrichment-and-signals', 'account-based-marketing-platforms', 'sales-and-lead-generation-tools'))",
+            "metrics": [
+              "job_post_count"
+            ],
+            "since": "2026-03-13"
+          },
+          "read": "job_post_count",
+          "extract": "organizations[].entities[type='advanced_query',term=\"project EQ 'generative_ai' AND (technology IN ('hightouch', 'd-b') OR technology_category IN ('gtm-enrichment-and-signals', 'account-based-marketing-platforms', 'sales-and-lead-generation-tools'))\"].job_post_count",
+          "since_note": "3-month window; recompute `since` to run date \u2212 3 months."
+        }
+      },
+      "sumble_link": {
+        "path": "/jobs",
+        "filters": {
+          "project": [
+            "generative_ai"
+          ],
+          "technology": [
+            "hightouch",
+            "d-b"
+          ],
+          "technology_category": [
+            "gtm-enrichment-and-signals",
+            "account-based-marketing-platforms",
+            "sales-and-lead-generation-tools"
+          ],
+          "hiring_period": [
+            "3mo"
+          ]
+        }
+      }
+    },
+    "intent_project_persona_count_generative_ai": {
+      "label": "Generative AI \u00d7 ICP persona jobs (3mo)",
+      "column": "generative_ai_x_relevant_persona_jobposts",
+      "category": "intent_project_persona_count",
+      "transform": "log",
+      "default_within": 50.0,
+      "p99": 1.94591,
+      "api_supported": true,
+      "source": {
+        "why": "Recent Generative AI jobs for an ICP persona show who is staffing the project \u2014 buying-window + fit.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "advanced_query",
+            "term": "project EQ 'generative_ai' AND job_function IN ('Sales Development Representative', 'Sales', 'Account Executive', 'Revenue Operations', 'Marketing')",
+            "metrics": [
+              "job_post_count"
+            ],
+            "since": "2026-03-13"
+          },
+          "read": "job_post_count",
+          "extract": "organizations[].entities[type='advanced_query',term=\"project EQ 'generative_ai' AND job_function IN ('Sales Development Representative', 'Sales', 'Account Executive', 'Revenue Operations', 'Marketing')\"].job_post_count",
+          "since_note": "3-month window; recompute `since` to run date \u2212 3 months."
+        }
+      },
+      "sumble_link": {
+        "path": "/jobs",
+        "filters": {
+          "project": [
+            "generative_ai"
+          ],
+          "job_function": [
+            "Sales Development Representative",
+            "Sales",
+            "Account Executive",
+            "Revenue Operations",
+            "Marketing"
+          ],
+          "hiring_period": [
+            "3mo"
+          ]
+        }
+      }
+    },
+    "intent_project_tech_count_digital_transformation": {
+      "label": "Digital Transformation \u00d7 ICP tech jobs (3mo)",
+      "column": "digital_transformation_x_relevant_tech_jobposts",
+      "category": "intent_project_tech_count",
+      "transform": "log",
+      "default_within": 50.0,
+      "p99": 1.791759,
+      "api_supported": true,
+      "source": {
+        "why": "Recent jobs hitting Digital Transformation AND an ICP tool signal an active, in-flight initiative \u2014 open buying window.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "advanced_query",
+            "term": "project EQ 'digital_transformation' AND (technology IN ('hightouch', 'd-b') OR technology_category IN ('gtm-enrichment-and-signals', 'account-based-marketing-platforms', 'sales-and-lead-generation-tools'))",
+            "metrics": [
+              "job_post_count"
+            ],
+            "since": "2026-03-13"
+          },
+          "read": "job_post_count",
+          "extract": "organizations[].entities[type='advanced_query',term=\"project EQ 'digital_transformation' AND (technology IN ('hightouch', 'd-b') OR technology_category IN ('gtm-enrichment-and-signals', 'account-based-marketing-platforms', 'sales-and-lead-generation-tools'))\"].job_post_count",
+          "since_note": "3-month window; recompute `since` to run date \u2212 3 months."
+        }
+      },
+      "sumble_link": {
+        "path": "/jobs",
+        "filters": {
+          "project": [
+            "digital_transformation"
+          ],
+          "technology": [
+            "hightouch",
+            "d-b"
+          ],
+          "technology_category": [
+            "gtm-enrichment-and-signals",
+            "account-based-marketing-platforms",
+            "sales-and-lead-generation-tools"
+          ],
+          "hiring_period": [
+            "3mo"
+          ]
+        }
+      }
+    },
+    "intent_project_persona_count_digital_transformation": {
+      "label": "Digital Transformation \u00d7 ICP persona jobs (3mo)",
+      "column": "digital_transformation_x_relevant_persona_jobposts",
+      "category": "intent_project_persona_count",
+      "transform": "log",
+      "default_within": 50.0,
+      "p99": 2.302585,
+      "api_supported": true,
+      "source": {
+        "why": "Recent Digital Transformation jobs for an ICP persona show who is staffing the project \u2014 buying-window + fit.",
+        "kind": "sumble_api",
+        "api": {
+          "endpoint": "POST https://api.sumble.com/v6/organizations",
+          "select_entity": {
+            "type": "advanced_query",
+            "term": "project EQ 'digital_transformation' AND job_function IN ('Sales Development Representative', 'Sales', 'Account Executive', 'Revenue Operations', 'Marketing')",
+            "metrics": [
+              "job_post_count"
+            ],
+            "since": "2026-03-13"
+          },
+          "read": "job_post_count",
+          "extract": "organizations[].entities[type='advanced_query',term=\"project EQ 'digital_transformation' AND job_function IN ('Sales Development Representative', 'Sales', 'Account Executive', 'Revenue Operations', 'Marketing')\"].job_post_count",
+          "since_note": "3-month window; recompute `since` to run date \u2212 3 months."
+        }
+      },
+      "sumble_link": {
+        "path": "/jobs",
+        "filters": {
+          "project": [
+            "digital_transformation"
+          ],
+          "job_function": [
+            "Sales Development Representative",
+            "Sales",
+            "Account Executive",
+            "Revenue Operations",
+            "Marketing"
+          ],
+          "hiring_period": [
+            "3mo"
+          ]
+        }
+      }
+    },
+    "plg_signups": {
+      "label": "Signups (incl. alt domains)",
+      "column": "plg_signups",
+      "category": "plg_usage",
+      "transform": "log",
+      "default_within": 35.0,
+      "p99": 4.736198,
+      "api_supported": false,
+      "source": {
+        "kind": "first_party"
+      },
+      "api_unsupported_reason": "First-party signal \u2014 not in Sumble's public API."
+    },
+    "plg_users_4w": {
+      "label": "Active users \u2014 4w (web + API + MCP)",
+      "column": "plg_users_4w",
+      "category": "plg_usage",
+      "transform": "log",
+      "default_within": 40.0,
+      "p99": 4.836282,
+      "api_supported": false,
+      "source": {
+        "kind": "first_party"
+      },
+      "api_unsupported_reason": "First-party signal \u2014 not in Sumble's public API."
+    },
+    "plg_queries_4w": {
+      "label": "Web app queries \u2014 4w",
+      "column": "plg_queries_4w",
+      "category": "plg_usage",
+      "transform": "log",
+      "default_within": 25.0,
+      "p99": 9.145802,
+      "api_supported": false,
+      "source": {
+        "kind": "first_party"
+      },
+      "api_unsupported_reason": "First-party signal \u2014 not in Sumble's public API."
+    }
+  },
+  "multipliers": [],
+  "tag_multipliers": [
+    {
+      "tag": "b2c",
+      "pct": 50,
+      "direction": "penalty"
+    },
+    {
+      "tag": "digital_native",
+      "pct": 50,
+      "direction": "boost"
+    },
+    {
+      "tag": "professional_services",
+      "pct": 30,
+      "direction": "boost"
+    }
+  ],
+  "tag_multipliers_defaults": [
+    {
+      "tag": "b2c",
+      "pct": 50,
+      "direction": "penalty"
+    },
+    {
+      "tag": "digital_native",
+      "pct": 50,
+      "direction": "boost"
+    },
+    {
+      "tag": "professional_services",
+      "pct": 30,
+      "direction": "boost"
+    }
+  ],
+  "_tag_calibration_audit": {
+    "attrs": {
+      "is_b2b": {
+        "universe_positives": 19563,
+        "universe_n": 23455,
+        "universe_rate": 0.8341,
+        "gold_positives": 34,
+        "gold_n": 35,
+        "gold_rate": 0.9714,
+        "lift": 1.165,
+        "direction": null,
+        "pct": 0,
+        "note": "lift 1.16 in neutral band \u2014 neutral"
+      },
+      "is_b2c": {
+        "universe_positives": 8773,
+        "universe_n": 23455,
+        "universe_rate": 0.374,
+        "gold_positives": 0,
+        "gold_n": 35,
+        "gold_rate": 0.0,
+        "lift": 0.0,
+        "direction": "penalty",
+        "pct": 50,
+        "note": "0 gold in attr, baseline 37% \u2014 strong penalty"
+      },
+      "is_digital_native": {
+        "universe_positives": 8421,
+        "universe_n": 23455,
+        "universe_rate": 0.359,
+        "gold_positives": 34,
+        "gold_n": 35,
+        "gold_rate": 0.9714,
+        "lift": 2.706,
+        "direction": "boost",
+        "pct": 50,
+        "note": ""
+      },
+      "is_ai_native": {
+        "universe_positives": 602,
+        "universe_n": 23455,
+        "universe_rate": 0.0257,
+        "gold_positives": 2,
+        "gold_n": 35,
+        "gold_rate": 0.0571,
+        "lift": 2.226,
+        "direction": null,
+        "pct": 0,
+        "note": "too few gold positives (2<3) \u2014 neutral"
+      },
+      "is_it_services": {
+        "universe_positives": 449,
+        "universe_n": 23455,
+        "universe_rate": 0.0191,
+        "gold_positives": 1,
+        "gold_n": 35,
+        "gold_rate": 0.0286,
+        "lift": 1.493,
+        "direction": null,
+        "pct": 0,
+        "note": "too few gold positives (1<3) \u2014 neutral"
+      },
+      "is_professional_services": {
+        "universe_positives": 1349,
+        "universe_n": 23455,
+        "universe_rate": 0.0575,
+        "gold_positives": 4,
+        "gold_n": 35,
+        "gold_rate": 0.1143,
+        "lift": 1.987,
+        "direction": "boost",
+        "pct": 30,
+        "note": ""
+      }
+    },
+    "industries": {}
+  },
+  "_weight_fit": {
+    "method": "regularized_section_category_fit_to_gold",
+    "lambda": 0.5,
+    "lambda_rule": "1se",
+    "n_gold": 35,
+    "n_nongold": 23420,
+    "n_fit_nongold": 5000,
+    "default_heldout_auc": 0.9785,
+    "fitted_heldout_auc": 0.9873,
+    "heldout_auc_gain": 0.0088,
+    "gain_se": 0.0038,
+    "adopt_threshold": 0.0038,
+    "lambda_gain_curve": {
+      "0.0": 0.0184,
+      "0.25": 0.0111,
+      "0.5": 0.0088,
+      "1.0": 0.0065,
+      "2.0": 0.0043,
+      "4.0": 0.0033,
+      "8.0": 0.001,
+      "16.0": 0.0,
+      "32.0": 0.0
+    },
+    "default_lift_at_decile": 9.716,
+    "fitted_lift_at_decile": 9.716,
+    "section_before": {
+      "size": 45.0,
+      "growth_momentum": 25.0,
+      "adoption": 15.0,
+      "concentration": 15.0
+    },
+    "section_after": {
+      "size": 41.68,
+      "growth_momentum": 23.16,
+      "adoption": 22.53,
+      "concentration": 12.62
+    },
+    "category_before": {
+      "icp_persona_count": 40.18,
+      "relevant_tech_team_count": 26.79,
+      "intent_project_tech_count": 13.39,
+      "intent_project_persona_count": 8.93,
+      "funding": 10.71,
+      "icp_persona_concentration": 60.0,
+      "relevant_tech_team_concentration": 40.0,
+      "icp_persona_growth": 76.92,
+      "funding_momentum": 23.08,
+      "plg_usage": 100.0
+    },
+    "category_after": {
+      "icp_persona_count": 38.87,
+      "relevant_tech_team_count": 27.03,
+      "intent_project_tech_count": 14.39,
+      "intent_project_persona_count": 9.6,
+      "funding": 10.11,
+      "icp_persona_concentration": 60.0,
+      "relevant_tech_team_concentration": 40.0,
+      "icp_persona_growth": 76.92,
+      "funding_momentum": 23.08,
+      "plg_usage": 100.0
+    },
+    "note": "Within-category signal weights are frozen; only the section blend and category weights were fit, shrunk toward the priors and adopted only because held-out AUC improved. These are the app's starting sliders \u2014 still fully tunable."
+  }
+}

@@ -34,10 +34,8 @@ const state = {
   sectionExpanded: {}, // section_key -> bool (default collapsed)
   selectedId: null,
   tab: "accounts",
-  // Category values toggled OFF (filtered out). Holds real account
-  // categories AND the Stage-5 pseudo-categories (ws_unprocessed / ws_fit /
-  // ws_unfit) once the LLM whitespace filter has run — "ws_unfit" is added
-  // here at load time so the sheet opens pre-pruned.
+  // Category values toggled OFF (filtered out) — real account categories
+  // (customer / allocated / unallocated / whitespace).
   hiddenCategories: new Set(),
   evalBuckets: 10,
   search: "",
@@ -66,13 +64,8 @@ const CATEGORY_LABELS = {
   customer: "Customer / gold",
   allocated: "Allocated to rep",
   unallocated: "CRM, unallocated",
-  whitespace: "Whitespace — new account",
-  whitespace_subsidiary: "Whitespace — parent in CRM",
-  // Pseudo-categories used by the filter chips once the Stage-5 LLM filter
-  // has classified whitespace rows: the "Whitespace" chip splits three ways.
-  ws_unprocessed: "WS · unprocessed",
-  ws_fit: "WS · ICP fit",
-  ws_unfit: "WS · not a fit",
+  whitespace: "Whitespace",
+  whitespace_subsidiary: "Whitespace (parent in CRM)",
 };
 const CATEGORY_ORDER = [
   "customer", "allocated", "unallocated", "whitespace", "whitespace_subsidiary",
@@ -381,18 +374,12 @@ function hasWsFilter() {
   return state.rows.some((r) => wsFitValue(r) !== "");
 }
 
-// Category used for FILTERING (chips). Once the LLM filter has run, the
-// plain "whitespace" category splits three ways: classified rows map to
-// ws_fit / ws_unfit, unclassified plain-whitespace rows to ws_unprocessed.
-// Other categories (and unclassified subsidiaries) keep their real value.
-// Display (Category column, Evaluation tab) keeps using rowCategory().
+// Category used for FILTERING (chips). Whitespace is a SINGLE list/chip — all
+// whitespace rows (ICP-fit and not-a-fit alike) share the one "whitespace"
+// category. The LLM filter verdict still rides along per row (ws_fit +
+// ws_fit_reason columns, detail panel); it just no longer splits the chip.
 function effectiveCategory(row) {
-  const v = wsFitValue(row);
-  if (v === "1") return "ws_fit";
-  if (v === "0") return "ws_unfit";
-  const cat = rowCategory(row);
-  // state.wsPresent is computed once at data load (avoids an O(n²) scan).
-  return cat === "whitespace" && state.wsPresent ? "ws_unprocessed" : cat;
+  return rowCategory(row);
 }
 
 function filteredRanked() {
@@ -1513,16 +1500,9 @@ function renderCategoryChips() {
     const c = effectiveCategory(r);
     counts[c] = (counts[c] || 0) + 1;
   }
-  // Chip list = the present categories, with "whitespace" expanded into the
-  // three-way Stage-5 split (unprocessed / ICP fit / not a fit) once the
-  // LLM filter has classified rows.
-  let present = (state.config.categories_present || []).slice();
-  if (wsPresent) {
-    const split = ["ws_unprocessed", "ws_fit", "ws_unfit"];
-    const i = present.indexOf("whitespace");
-    if (i >= 0) present.splice(i, 1, ...split);
-    else present = present.concat(split);
-  }
+  // Chip list = the present categories. Whitespace is a single chip (no
+  // Stage-5 three-way split): all whitespace rows share one "whitespace" chip.
+  const present = (state.config.categories_present || []).slice();
 
   // "All" — active when nothing is hidden; click resets the filter
   // (including the Stage-5 whitespace-fit chips).
@@ -2031,11 +2011,10 @@ async function init() {
   state.config = data.config;
   state.rows = data.rows;
   state.availableTags = data.config.available_tags || [];
-  // Stage-5 LLM whitespace filter: when classified rows exist, the
-  // Whitespace chip splits into unprocessed / ICP fit / not-a-fit, and the
-  // sheet opens PRE-PRUNED — "not a fit" rows hidden until toggled back on.
+  // Stage-5 LLM whitespace filter: its per-row verdict (ws_fit + ws_fit_reason)
+  // is surfaced in the columns and detail panel, but whitespace stays a SINGLE
+  // chip/list — no three-way split, no pre-pruning of "not a fit" rows.
   state.wsPresent = hasWsFilter();
-  if (state.wsPresent) state.hiddenCategories.add("ws_unfit");
 
   document.getElementById("customer-name").textContent =
     state.config.customer_name || "Account scoring";

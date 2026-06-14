@@ -3,10 +3,11 @@
 No pip install, no venv. Stdlib only: csv, json, http.server.
 
 Serves the findings produced by `_build/analyze.py` (findings.json) and lets
-the user review each one: accept / reject / skip, override the suggested
-merge survivor, and add notes. Decisions persist to decisions.json on every
-action, and the Export button produces actions.csv — one row per CRM change
-to make (merge, set parent, create parent account).
+the user review each one: accept / reject / skip, and for duplicates choose
+per record whether to keep it as the primary, merge it into the primary, or
+delete it outright. Decisions persist to decisions.json on every action, and
+the Export button produces actions.csv — one row per CRM change to make
+(merge, delete, set parent, create parent account).
 
 Run from the output directory:
   python3 app.py            # http://localhost:8002
@@ -76,24 +77,40 @@ def build_actions(findings: dict, decisions: dict) -> list[dict]:
 
     for dup in findings.get("duplicates", []):
         d = decisions.get(dup["id"]) or {}
-        if d.get("decision") != "accept":
+        if d.get("dismissed"):
             continue
-        survivor_id = d.get("survivor_crm_id") or dup["suggested_survivor_crm_id"]
-        survivor = next(
-            (a for a in dup["accounts"] if a["crm_account_id"] == survivor_id),
+        # A duplicate is resolved by picking a primary (no accept/reject/skip).
+        # Per-record actions: {crm_id: "primary" | "merge" | "delete"}. Picking
+        # a primary defaults every other record to "merge"; flip any to delete.
+        record_actions = d.get("record_actions") or {}
+        primary_id = next(
+            (cid for cid, act in record_actions.items() if act == "primary"), None
+        )
+        if not primary_id:
+            continue  # not yet resolved
+        primary = next(
+            (a for a in dup["accounts"] if a["crm_account_id"] == primary_id),
             dup["accounts"][0],
         )
         for a in dup["accounts"]:
-            if a["crm_account_id"] == survivor["crm_account_id"]:
+            cid = a["crm_account_id"]
+            if cid == primary["crm_account_id"]:
                 continue
             row = base(dup["id"], dup["confidence"])
-            row.update(
-                action="merge",
-                account_id=a["crm_account_id"],
-                account_name=a["crm_name"],
-                target_account_id=survivor["crm_account_id"],
-                target_account_name=survivor["crm_name"],
-            )
+            if record_actions.get(cid) == "delete":
+                row.update(
+                    action="delete",
+                    account_id=cid,
+                    account_name=a["crm_name"],
+                )
+            else:
+                row.update(
+                    action="merge",
+                    account_id=cid,
+                    account_name=a["crm_name"],
+                    target_account_id=primary["crm_account_id"],
+                    target_account_name=primary["crm_name"],
+                )
             actions.append(row)
 
     for p in findings.get("parent_sub", []):
@@ -193,10 +210,22 @@ class Handler(SimpleHTTPRequestHandler):
                 entry["decision"] = decision
             if "survivor_crm_id" in payload:
                 entry["survivor_crm_id"] = payload["survivor_crm_id"]
+            if "record_actions" in payload:
+                ra = payload["record_actions"] or {}
+                if ra:
+                    entry["record_actions"] = ra
+                else:
+                    entry.pop("record_actions", None)
+            if "dismissed" in payload:
+                if payload["dismissed"]:
+                    entry["dismissed"] = True
+                else:
+                    entry.pop("dismissed", None)
             if "note" in payload:
                 entry["note"] = payload["note"]
-            # Drop entries that carry nothing (toggled off with no note/survivor).
-            if any(entry.get(k) for k in ("decision", "survivor_crm_id", "note")):
+            # Drop entries that carry nothing (toggled off with no extras).
+            keys = ("decision", "survivor_crm_id", "record_actions", "dismissed", "note")
+            if any(entry.get(k) for k in keys):
                 decisions[fid] = entry
             else:
                 decisions.pop(fid, None)
@@ -220,7 +249,8 @@ class Handler(SimpleHTTPRequestHandler):
 def main() -> None:
     port = int(os.environ.get("PORT", sys.argv[1] if len(sys.argv) > 1 else "8002"))
     Handler.findings = load_findings()
-    host = "127.0.0.1"
+    # Bind localhost by default; containers (Cloud Run) set HOST=0.0.0.0.
+    host = os.environ.get("HOST", "127.0.0.1")
     print(f"CRM cleaning review app → http://localhost:{port}")
     print("Ctrl-C to stop. Decisions save to decisions.json on every click.")
     ThreadingHTTPServer((host, port), Handler).serve_forever()

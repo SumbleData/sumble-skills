@@ -26,6 +26,10 @@ def scrub_account(a: dict) -> None:
     if a.get("owner"):
         a["owner"] = FAKE_OWNERS[_bucket(a["owner"], len(FAKE_OWNERS))]
     a["is_customer"] = _bucket(a.get("crm_account_id") or "", 6) == 0
+    # Opportunity counts hint at real pipeline — drop them from the public
+    # demo (the footprint then shows only contacts + activities).
+    if "opportunity_count" in a:
+        a["opportunity_count"] = 0
 
 
 def main() -> None:

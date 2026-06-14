@@ -83,6 +83,8 @@ touchpoints with three of the eleven people who matter here, and the top two
 are people you've never spoken to." A funnel-only lead score can only re-sort
 the three.
 
+**Want to see it live?** Explore the [people scoring demo](https://people-scoring-demo.sumble.com/) — Sumble's own ICP across our top accounts by account score: met and unmet people on one ranked scale, with sliders to retune and every row clickable to the why. For demonstration purposes only.
+
 ## What goes into the number
 
 The same discipline as the account score: observable attributes, normalized,

@@ -1,0 +1,262 @@
+{
+  "customer_name": "Sumble",
+  "score_label": "Sumble people fit score",
+  "csv": "data.csv",
+  "id_column": "person_id",
+  "name_column": "name",
+  "linkedin_url_column": "linkedin_url",
+  "sumble_url_column": "sumble_url",
+  "account_picker": {
+    "domain_column": "domain",
+    "org_name_column": "org_name",
+    "account_rank_column": "account_rank",
+    "account_score_column": "account_score"
+  },
+  "table_columns": [
+    "name",
+    "current_title",
+    "job_function_name",
+    "job_level",
+    "matched_skills",
+    "skill_count",
+    "location"
+  ],
+  "weights": {
+    "jf": {
+      "default": 38.0,
+      "current": 38.0,
+      "min": 0,
+      "max": 100,
+      "label": "Job Function (%)"
+    },
+    "seniority": {
+      "default": 46.0,
+      "current": 46.0,
+      "min": 0,
+      "max": 100,
+      "label": "Seniority (%)"
+    },
+    "skills": {
+      "default": 16.0,
+      "current": 16.0,
+      "min": 0,
+      "max": 100,
+      "label": "Skills (%)"
+    }
+  },
+  "job_function_ranges": {
+    "sales": {
+      "min": 0.55,
+      "max": 0.95,
+      "label": "Sales"
+    },
+    "sales-development-representative": {
+      "min": 0.55,
+      "max": 0.95,
+      "label": "Sales Development Representative"
+    },
+    "account-executive": {
+      "min": 0.55,
+      "max": 0.95,
+      "label": "Account Executive"
+    },
+    "revenue-operations": {
+      "min": 0.55,
+      "max": 0.95,
+      "label": "Revenue Operations"
+    },
+    "marketing": {
+      "min": 0.55,
+      "max": 0.95,
+      "label": "Marketing"
+    },
+    "account-manager": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Account Manager"
+    },
+    "brand-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Brand Marketing"
+    },
+    "channel-sales": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Channel Sales"
+    },
+    "communications": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Communications"
+    },
+    "content-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Content Marketing"
+    },
+    "creative-director": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Creative Director"
+    },
+    "customer-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Customer Marketing"
+    },
+    "demand-generation": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Demand Generation"
+    },
+    "digital-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Digital Marketing"
+    },
+    "enterprise-account-executive": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Enterprise Account Executive"
+    },
+    "events": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Events"
+    },
+    "field-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Field Marketing"
+    },
+    "growth-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Growth Marketing"
+    },
+    "gtm-engineer": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "GTM Engineer"
+    },
+    "influencer-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Influencer Marketing"
+    },
+    "inside-sales-representative": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Inside Sales Representative"
+    },
+    "key-account-manager": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Key Account Manager"
+    },
+    "lifecycle-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Lifecycle Marketing"
+    },
+    "market-research": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Market Research"
+    },
+    "marketing-analyst": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Marketing Analyst"
+    },
+    "marketing-operations": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Marketing Operations"
+    },
+    "mid-market-account-executive": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Mid-Market Account Executive"
+    },
+    "outside-sales-representative": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Outside Sales Representative"
+    },
+    "partner-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Partner Marketing"
+    },
+    "performance-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Performance Marketing"
+    },
+    "product-marketing": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Product Marketing"
+    },
+    "sales-analyst": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Sales Analyst"
+    },
+    "sales-enablement": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Sales Enablement"
+    },
+    "sales-engineer": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Sales Engineer"
+    },
+    "sales-operations": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Sales Operations"
+    },
+    "seo": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "SEO"
+    },
+    "smb-account-executive": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "SMB Account Executive"
+    },
+    "social-media-manager": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Social Media Manager"
+    }
+  },
+  "default_jf_range": {
+    "min": 0.45,
+    "max": 0.8
+  },
+  "skill_cap": 5,
+  "seniority": {
+    "rank_column": "job_level_rank",
+    "max_rank_column": "max_job_level_rank"
+  },
+  "one_p_signals": [],
+  "flags": {
+    "crm_contact_column": "is_crm_contact",
+    "gold_column": "is_icp_gold"
+  },
+  "filters_applied": {
+    "seniority_floor_label": "Head",
+    "seniority_floor_rank": 7,
+    "icp_job_function_count": 5,
+    "icp_skill_count": 27,
+    "calibration_companies": 100,
+    "total_people": 4218,
+    "gold_people": 0
+  }
+}

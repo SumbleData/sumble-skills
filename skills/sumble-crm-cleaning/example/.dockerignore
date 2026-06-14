@@ -1,0 +1,6 @@
+decisions.json
+actions.csv
+__pycache__/
+*.pyc
+.git
+README.md

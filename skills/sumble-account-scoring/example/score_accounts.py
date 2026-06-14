@@ -452,8 +452,9 @@ def build_row(account: dict, resp_org: dict, config: dict, eff: dict[str, float]
     attrs = resp_org.get("attributes") or {}
     ents = {(_entity_key(e)): e for e in (resp_org.get("entities") or [])}
     industry = attrs.get("industry") or ""
-    # professional_services is a native Sumble org tag (no industry synthesis).
     tags = list(attrs.get("tags") or [])
+    if industry == "Professional Services" and "professional_services" not in tags:
+        tags.append("professional_services")
 
     slug = attrs.get("slug") or ""
     link_base = config.get("sumble_url_base", "https://sumble.com/orgs/")
@@ -470,7 +471,7 @@ def build_row(account: dict, resp_org: dict, config: dict, eff: dict[str, float]
     row["teams_count"] = int(attrs.get("teams_count") or 0)
     row["tags"] = "|".join(tags)
     row["is_it_services"] = 1 if "it_services" in tags else 0
-    row["is_professional_services"] = 1 if "professional_services" in tags else 0
+    row["is_professional_services"] = 1 if industry == "Professional Services" else 0
     # Deep links: the org page, plus one per signal that carries a sumble_link
     # spec — so the scored output is clickable, like the app's score.csv.
     row["sumble_url"] = f"{link_base}{slug}" if slug else ""

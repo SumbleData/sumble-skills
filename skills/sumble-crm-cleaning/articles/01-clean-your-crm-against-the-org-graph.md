@@ -34,7 +34,7 @@ And because each matched organization carries its position in the org graph — 
 
 An automated merge that's wrong is worse than the duplicate it removed. So the skill doesn't touch your CRM. It builds a small local review app (plain Python, no dependencies) where every finding is a card you accept, reject, or skip — and every card shows its work: the matched Sumble organization with the alternate names and domains that link the records (for the Automattic cluster above, the alias list *is* the explanation), the full ancestor chain behind every hierarchy suggestion, and deep links both ways — each account name to its CRM record, each matched org to its Sumble page — so verifying a finding is two clicks, not two browser searches.
 
-For duplicate clusters, the app suggests a **survivor** (owned records beat orphans, customers beat prospects, older beats newer) and lets you override it with a radio button. Decisions save as you click. When you're done, one button exports `actions.csv`: a `merge` / `set_parent` / `create_parent_and_link` row per accepted finding, keyed by CRM account id — ready for your admin, a Data Loader job, or a follow-up agent run.
+For duplicate clusters, you mark one record the **primary** (the app suggests one — owned records beat orphans, customers beat prospects, the bigger CRM footprint beats the emptier one); the other records then default to **merge** into it, and you switch any to **delete** outright — a shell record with no history attached is often cleaner to delete than to merge. (A false match — two different companies the matcher collapsed onto one org — is one click to dismiss as "not a duplicate.") Decisions save as you click. When you're done, one button exports `actions.csv`: a `merge` / `delete` / `set_parent` / `create_parent_and_link` row per resolved finding, keyed by CRM account id — ready for your admin, a Data Loader job, or a follow-up agent run.
 
 There's also an **Unmatched** tab: accounts the matcher couldn't resolve to any organization. Don't skip it. In practice it's where the shell records, typo'd imports, and long-dead companies hide.
 
@@ -48,6 +48,8 @@ We ran the skill on Sumble's own Salesforce: 1,236 accounts, roughly ten minutes
 - **4 unmatched accounts**, all worth retiring.
 
 The review step earned its keep immediately. Two of the suggested parent links — Boomi under Dell, Veracode under Broadcom — reflect ownership that has since been divested. The org graph is data, and data has lag; a reviewer with context rejects those in seconds, and the rejection is recorded. That's the model: the machine finds, the human decides.
+
+**Want to see it live?** Explore the [CRM cleaning review demo](https://crm-cleaning-demo.sumble.com/) — the findings from this run, with the per-finding evidence, the alternate-name popovers, and the pick-a-primary / merge-or-delete review. For demonstration purposes only.
 
 ## Run it on yours
 

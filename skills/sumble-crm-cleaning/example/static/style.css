@@ -347,6 +347,7 @@ main { padding: 4px 22px 60px; max-width: 1100px; }
   border-color: var(--fg-dim);
   color: #fff;
 }
+.btn.dismiss.on { background: var(--danger); border-color: var(--danger); color: #fff; }
 .decide .note-input {
   flex: 1;
   min-width: 200px;
@@ -363,4 +364,42 @@ main { padding: 4px 22px 60px; max-width: 1100px; }
   text-align: center;
 }
 
-.survivor-pick { accent-color: var(--accent); }
+/* per-record action selector inside a duplicate cluster */
+.rec-actions { display: inline-flex; gap: 0; }
+.rec-act {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-card);
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-right-width: 0;
+}
+.rec-act:first-child { border-radius: 6px 0 0 6px; }
+.rec-act:last-child { border-radius: 0 6px 6px 0; border-right-width: 1px; }
+.rec-act:not(:disabled):hover { color: var(--fg); }
+.rec-act:disabled { opacity: 0.4; cursor: default; }
+.rec-primary.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rec-merge.on { background: var(--info); border-color: var(--info); color: #fff; }
+.rec-delete.on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.rec-act.on + .rec-act { border-left-color: transparent; }
+.sugg {
+  font-size: 11px;
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+/* demo-only banner (example app, not the generated skill output) */
+.demo-banner {
+  background: #fef3c7;
+  color: #78350f;
+  border-bottom: 1px solid #f59e0b;
+  padding: 8px 20px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+.demo-banner strong {
+  color: #92400e;
+  font-weight: 700;
+}

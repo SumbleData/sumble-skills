@@ -52,7 +52,16 @@ function tabItems(tab) {
 }
 
 function decisionOf(id) {
-  return (state.decisions[id] || {}).decision || "undecided";
+  const d = state.decisions[id] || {};
+  // Duplicates have no accept/reject/skip — their status is derived from the
+  // per-record actions: a chosen primary = resolved, "not a duplicate" =
+  // dismissed. Other tabs still use an explicit decision.
+  if (typeof id === "string" && id.startsWith("dup_")) {
+    if (d.dismissed) return "reject";
+    const ra = d.record_actions || {};
+    return Object.values(ra).includes("primary") ? "accept" : "undecided";
+  }
+  return d.decision || "undecided";
 }
 
 function reviewable() {
@@ -319,12 +328,20 @@ function renderFinding(item) {
     ? `<div class="note-line">${esc(item.note)}</div>`
     : "";
   let body = "";
-  if (state.tab === "duplicates") body = dupBody(item);
-  else if (state.tab === "parent_sub") body = psBody(item);
-  else body = pxBody(item);
+  let footer = "";
+  if (state.tab === "duplicates") {
+    body = dupBody(item);
+    footer = dupFooter(item, dec);
+  } else if (state.tab === "parent_sub") {
+    body = psBody(item);
+    footer = decideRow(item, dec);
+  } else {
+    body = pxBody(item);
+    footer = decideRow(item, dec);
+  }
   return (
     `<div class="finding decided-${dec}" data-id="${item.id}">` +
-    head + sumbleMatchLine(item) + note + body + decideRow(item, dec) + `</div>`
+    head + sumbleMatchLine(item) + note + body + footer + `</div>`
   );
 }
 
@@ -339,24 +356,60 @@ function titleOf(item) {
 }
 
 function dupBody(item) {
-  const chosen =
-    (state.decisions[item.id] || {}).survivor_crm_id ||
-    item.suggested_survivor_crm_id;
+  const actions = (state.decisions[item.id] || {}).record_actions || {};
+  const primaryId = Object.keys(actions).find((k) => actions[k] === "primary") || "";
+  const hasPrimary = !!primaryId;
+  const suggested = item.suggested_survivor_crm_id;
   const rows = item.accounts
     .map((a) => {
-      const checked = a.crm_account_id === chosen ? "checked" : "";
+      const cid = a.crm_account_id;
+      const act = actions[cid] || "";
+      const isPrimary = act === "primary";
+      const sugg =
+        !hasPrimary && cid === suggested
+          ? `<div class="dim sugg">suggested primary</div>`
+          : "";
+      // Primary is pickable until one is chosen; once a primary exists, only
+      // the other records can be merged or deleted.
+      const mk = (val, label, enabled, title) =>
+        `<button type="button" class="rec-act rec-${val}` +
+        `${act === val ? " on" : ""}"${enabled ? "" : " disabled"} ` +
+        `data-act="${val}" title="${esc(title)}">${label}</button>`;
+      const primaryEnabled = !hasPrimary || isPrimary;
+      const mdEnabled = hasPrimary && !isPrimary;
       return (
-        `<tr><td><input type="radio" class="survivor-pick" name="sv_${item.id}" ` +
-        `value="${esc(a.crm_account_id)}" ${checked} title="Keep this record" /></td>` +
-        acctCells(a) + `</tr>`
+        `<tr><td><div class="rec-actions" data-cid="${esc(cid)}">` +
+        mk("primary", "Primary", primaryEnabled, "Keep this record as the survivor") +
+        mk("merge", "Merge", mdEnabled, "Merge this record into the primary") +
+        mk("delete", "Delete", mdEnabled, "Delete this record outright") +
+        `</div>${sugg}</td>` +
+        acctCells(a) +
+        `</tr>`
       );
     })
     .join("");
+  const help = hasPrimary
+    ? `Each other record will <b>merge</b> into the primary — switch any to ` +
+      `<b>Delete</b> to remove it instead.`
+    : `Pick the record to keep as <b>Primary</b>; the others then become ` +
+      `merge or delete.`;
   return (
-    `<table class="acct-table"><tr><th title="Record to keep">Keep</th>` +
+    `<table class="acct-table"><tr><th title="What to do with each record">` +
+    `Action</th>` +
     acctHead().slice(4) + rows + `</table>` +
-    `<div class="dim chain">Accepting merges every other record into the ` +
-    `selected survivor.</div>`
+    `<div class="dim chain">${help}</div>`
+  );
+}
+
+function dupFooter(item, dec) {
+  const note = esc((state.decisions[item.id] || {}).note || "");
+  return (
+    `<div class="decide">` +
+    `<button class="btn dismiss ${dec === "reject" ? "on" : ""}" ` +
+    `data-dismiss title="These are not actually the same company">` +
+    `Not a duplicate</button>` +
+    `<input class="note-input" placeholder="Note (optional)" value="${note}" />` +
+    `</div>`
   );
 }
 
@@ -437,24 +490,52 @@ function decideRow(item, dec) {
 function bindFindingEvents(main) {
   main.querySelectorAll(".finding[data-id]").forEach((el) => {
     const id = el.dataset.id;
-    el.querySelectorAll(".decide .btn").forEach((btn) =>
+    el.querySelectorAll(".decide .btn[data-d]").forEach((btn) =>
       btn.addEventListener("click", () => {
         const current = decisionOf(id);
         const next = current === btn.dataset.d ? null : btn.dataset.d;
         decide(id, { decision: next });
       })
     );
+    const dismissBtn = el.querySelector(".decide .btn[data-dismiss]");
+    if (dismissBtn)
+      dismissBtn.addEventListener("click", () => {
+        const dismiss = decisionOf(id) !== "reject";
+        decide(id, dismiss ? { dismissed: true, record_actions: {} } : { dismissed: false });
+      });
     const noteEl = el.querySelector(".note-input");
     if (noteEl)
       noteEl.addEventListener("change", () =>
-        decide(id, { decision: decisionOf(id), note: noteEl.value }, false)
+        decide(id, { note: noteEl.value }, false)
       );
-    el.querySelectorAll(".survivor-pick").forEach((radio) =>
-      radio.addEventListener("change", () =>
-        decide(id, { decision: decisionOf(id), survivor_crm_id: radio.value }, false)
-      )
+    el.querySelectorAll(".rec-act").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const cid = btn.closest(".rec-actions").dataset.cid;
+        setRecordAction(id, cid, btn.dataset.act);
+      })
     );
   });
+}
+
+/* Set a duplicate record's action. Picking Primary makes that record the
+   survivor and defaults every other record to Merge; re-clicking the active
+   Primary clears the whole cluster (back to undecided). With a primary set,
+   the other records toggle between Merge and Delete. */
+function setRecordAction(fid, cid, act) {
+  const dup = (state.findings.duplicates || []).find((d) => d.id === fid);
+  const ids = dup ? dup.accounts.map((a) => a.crm_account_id) : [cid];
+  let cur = { ...((state.decisions[fid] || {}).record_actions || {}) };
+  if (act === "primary") {
+    if (cur[cid] === "primary") cur = {};
+    else {
+      cur = {};
+      ids.forEach((id) => (cur[id] = id === cid ? "primary" : "merge"));
+    }
+  } else {
+    cur[cid] = act; // merge / delete (only reachable once a primary exists)
+  }
+  decide(fid, { record_actions: cur, dismissed: false });
 }
 
 async function decide(id, payload, rerender = true) {

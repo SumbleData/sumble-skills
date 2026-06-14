@@ -18,8 +18,10 @@ user adjudicate each one:
    companies that aren't in the CRM at all (grouped per missing parent).
 
 Every accepted finding lands in **`actions.csv`** — one row per CRM change
-(`merge`, `set_parent`, `create_parent_and_link`) — the hand-off to the CRM
-admin or a dedupe job.
+(`merge`, `delete`, `set_parent`, `create_parent_and_link`) — the hand-off to
+the CRM admin or a dedupe job. For a duplicate cluster the reviewer picks one
+record as the primary and, per other record, chooses **merge into primary**
+(default) or **delete**.
 
 Follow the stages closely — input (interview) and output should be consistent
 between runs, more deterministic than most skills. All detection logic is
@@ -286,13 +288,16 @@ python3 app.py
 No `pip install`, no virtualenv — stdlib-only, any Python 3.10+. Override the
 port via `python3 app.py 9002` or `PORT=9002 python3 app.py`.
 
-Explain the review loop in two sentences: accept/reject/skip each finding
-(decisions save instantly to `decisions.json`; the Keep radio picks the merge
-survivor), then **Export actions.csv** to get the change list — `merge` /
+Explain the review loop in two sentences: hierarchy and parents-not-in-CRM
+findings get accept/reject/skip, while a duplicate cluster is resolved by its
+per-record actions — mark one record **Primary** (the survivor) and the others
+default to **Merge**, switch any to **Delete**, or hit **Not a duplicate** to
+dismiss a false match (decisions save instantly to `decisions.json`). Then
+**Export actions.csv** to get the change list — `merge` / `delete` /
 `set_parent` / `create_parent_and_link` rows keyed by CRM account id, ready
 for the CRM admin, a Data Loader job, or a follow-up agent run. Mention the
-**Unmatched** tab too: accounts Sumble couldn't match are often shells,
-typos, or defunct entities — worth a skim while cleaning.
+**Unmatched** tab too: accounts Sumble couldn't match are often shells, typos,
+or defunct entities — worth a skim while cleaning.
 
 **Refresh path:** new CRM export → overwrite `_raw/accounts.csv` → re-run
 Stage 2 + Stage 3 → restart `app.py`. Decisions persist by finding id;
