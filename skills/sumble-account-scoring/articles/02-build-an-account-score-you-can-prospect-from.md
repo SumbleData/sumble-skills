@@ -1,5 +1,7 @@
 # A step by step guide to world class account scoring in under two hours
 
+**Skill:** [`sumble-account-scoring`](../SKILL.md) — run it in Claude Code, Codex, or Cursor.
+
 *Part 2 of 2.* Part 1 — [Account Scoring Should Explain, Not Just Rank](01-account-score-should-tell-a-rep-what-to-do.md) — lays out the method; this is how to put it in action.
 
 ## TLDR

@@ -2,6 +2,8 @@
 
 Most lead scoring re-sorts the contacts you happen to have. The best people scoring covers everyone who matters at the accounts you care about — met or not — and keeps that list alive every day.
 
+**Skill:** [`sumble-people-scoring`](../SKILL.md) — run it in Claude Code, Codex, or Cursor.
+
 *If you've read [Account Scoring Should Explain, Not Just Rank](../../sumble-account-scoring/articles/01-account-score-should-tell-a-rep-what-to-do.md),
 this is the layer underneath: the people. It stands on its own if you haven't.*
 

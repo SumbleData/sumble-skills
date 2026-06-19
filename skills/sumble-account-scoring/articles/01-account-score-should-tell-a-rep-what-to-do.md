@@ -2,6 +2,8 @@
 
 Most account scores spit out a number. The best ones explain why an account matters and what the first move should be.
 
+**Skill:** [`sumble-account-scoring`](../SKILL.md) — run it in Claude Code, Codex, or Cursor.
+
 *Part 1 of 2.* Part 2 — [A step by step guide to world class account scoring in under two hours](02-build-an-account-score-you-can-prospect-from.md).
 
 

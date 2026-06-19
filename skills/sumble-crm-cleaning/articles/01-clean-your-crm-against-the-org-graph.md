@@ -2,6 +2,8 @@
 
 Most CRM dedupe tools compare account names to each other and guess. The better approach: resolve every account to a real organization, then read the duplicates and the missing hierarchy straight off the org graph.
 
+**Skill:** [`sumble-crm-cleaning`](../SKILL.md) — run it in Claude Code, Codex, or Cursor.
+
 ## TLDR
 - Duplicate detection by name similarity is guesswork. Resolving both records to the same real-world organization is evidence.
 - The same matching pass finds your hierarchy gaps: subsidiaries with no link to their parent, and parents your CRM doesn't know exist.
