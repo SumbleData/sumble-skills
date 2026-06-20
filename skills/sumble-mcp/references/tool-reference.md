@@ -67,8 +67,8 @@ Bad:
 
 | Tool | Purpose | Cost |
 |---|---|---|
-| `ListOrganizationLists` | List org lists. Prefer `type = group` when the user says "my accounts" or "my territory". | 1 credit per list |
-| `GetOrganizationList` | Fetch contents of one org list. | 1 credit per org |
+| `ListOrganizationLists` | List org lists with IDs, URLs, counts, read-only/deletable flags, deleted status, and Signals inclusion settings. Prefer `type = group` when the user says "my accounts" or "my territory". | 1 credit per list |
+| `GetOrganizationList` | Fetch contents of one org list, including each organization's Sumble profile URL and own website URL. | 1 credit per org |
 | `CreateOrganizationList` | Create an empty org list. | Free |
 | `AddOrganizationsToList` | Add organizations by IDs or slugs. | Free |
 
