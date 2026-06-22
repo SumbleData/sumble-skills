@@ -1,6 +1,6 @@
 ---
 name: sumble-account-research
-description: "Guide a seller through researching and prospecting accounts on the Sumble MCP. Asks up front whether they're working a specific account or brainstorming which to focus on, and which deliverable they want — outreach sequences, an account plan (your own prep to formulate a strategy, an SDR-to-AE handoff, AE-to-manager, or QBR prep), or a presentation deck; for a plan or deck, also asks the format/medium and an example to match. For brainstorm, ranks their Sumble territory/org list by fit + why each is compelling. Builds a cached Sumble profile from GetMyCompanyProfile plus sales plays / persona profiles they provide (Seismic, Saleshood, or pasted). Then researches one account at a time — internal context (Gong/Fireflies/Granola/CRM/marketing), the rebuilt Sumble overview (tech, teams, people, headcount, hiring signals, ICP fit), and recommended teams + people for first land or expansion — and produces the chosen deliverable (sequences pushed to a sequencer; plan or deck in the requested format)."
+description: "Guide a seller through researching and prospecting accounts on the Sumble MCP. Asks up front whether they're working a specific account or brainstorming which to focus on, and which deliverable they want — outreach sequences, an account plan (your own prep to formulate a strategy, an SDR-to-AE handoff, AE-to-manager, or QBR prep), or a presentation deck; for a plan or deck, also asks the format/medium and an example to match. For brainstorm, ranks their Sumble territory/org list on two axes — ICP fit/score and recent triggers (GetOrganizationSignals: champion moves, new hires on tracked tech, hiring/tech-adoption trends), so a hot recent signal surfaces an account even when its score is middling — with a why each is compelling. Builds a cached Sumble profile from GetMyCompanyProfile plus sales plays / persona profiles they provide (Seismic, Saleshood, or pasted). Then researches one account at a time — internal context (Gong/Fireflies/Granola/CRM/marketing), the rebuilt Sumble overview (tech, teams, people, headcount, hiring signals, ICP fit), and recommended teams + people for first land or expansion — and produces the chosen deliverable (sequences pushed to a sequencer; plan or deck in the requested format)."
 ---
 
 # Account Research & Prospecting
@@ -116,15 +116,33 @@ Step 4 and every draft in Step 5.
 
 ## Step 4 — (Brainstorm only) Narrow to the best accounts
 
-Rank the list and justify each pick:
+An account is worth working **now** for one of two reasons, and they're
+independent — score on **both axes**, not just the first:
 
-- Rank by **Sumble fit / score** (a score they keep or a `group` list's score) and
-  **recent on-thesis signals** (one cheap `FindMatchAndEnrichJobs` pass on key
-  projects / tech categories, `hiring_period EQ '3mo'`).
-- Give each a one-line **why it's compelling for them** — a sales play, a tech
-  match, a fresh hiring signal — not a bare score.
+1. **Fit** — it looks like a great account in the abstract (high **Sumble fit /
+   score**: a score they keep, a `group` list's score, or a qualitative ICP read).
+2. **A recent trigger** — *something just happened* that makes now the moment, even
+   if the fit score is only middling. Pull this from **`GetOrganizationSignals`**
+   (per org id) — champion/leadership moves, new hires on tracked tech, hiring and
+   tech-adoption trends — each carries a `priority`, `date`, `sales_angle`, and
+   `sumble_url`. **A fresh, high-`priority` signal earns an account a place on the
+   shortlist on its own** — do not pre-filter the list by score before checking
+   signals, or you'll drop exactly these low-score/hot-signal accounts.
 
-Show a short ranked table (account · why · top signal · URL) and ask **which to
+**How to run it cheaply** (signals cost 1 cr per signal returned, **free when an
+org has none**):
+
+- For a big list, run the cheap **`FindMatchAndEnrichJobs`** triage first (key
+  projects / tech categories, `hiring_period EQ '3mo'`) to size fit broadly, then
+  pull **`GetOrganizationSignals`** across the candidate pool — *not just the
+  already-high-fit ones* — to catch the recent triggers. For a short list, just pull
+  signals across all of it.
+- Give each pick a one-line **why it's compelling for them** — a sales play, a tech
+  match, or a specific recent signal ("new VP Data started May 2026", "Databricks
+  adoption signal last month") — not a bare score.
+
+Show a short ranked table (**account · fit · why-now signal (date) · URL**), marking
+which accounts are riding **fit**, a **recent signal**, or both, and ask **which to
 research**. Several picks → Step 5 one at a time.
 
 ## Step 5 — Research one account (repeat per account)
@@ -152,7 +170,7 @@ full queries in `references/overview-rebuild.md`):
 | **Teams** | Team entity metrics from `FindMatchAndEnrichOrganizations` (which, size, growth). |
 | **Tech** | Org technologies (key categories present? competitors?). |
 | **Headcount** | `employee_count` + headcount / team-growth trend. |
-| **Signals** | Recent on-thesis hiring via `FindMatchAndEnrichJobs`. |
+| **Signals** | Recent triggers via `GetOrganizationSignals` (champion moves, new hires on tracked tech, hiring/tech-adoption trends — each with `priority` + `sales_angle`); plus on-thesis hiring via `FindMatchAndEnrichJobs`. |
 
 Cheap/broad first (org enrich + one jobs pass). Pull the **full job description +
 `related_people`** only for the single strongest signal; expensive attrs /

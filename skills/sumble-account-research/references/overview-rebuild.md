@@ -24,11 +24,18 @@ displacement tech (the angle), complementary tech. `SearchTechnologies` to resol
 
 **5. Headcount** — `employee_count` + headcount/team-growth trend; a rising team is a why-now.
 
-**6. Signals** — recent on-thesis hiring (no separate signals tool):
-`FindMatchAndEnrichJobs` scoped to the org `AND (project IN (...) OR
-technology_category IN (...)) AND hiring_period EQ '3mo'` (`1mo` freshest, `6mo`
-wider). Rank by volume + recency; then pull `description` + `related_people` for the
-single strongest — that's the why-now language and the hiring manager.
+**6. Signals** — two complementary sources:
+- **`GetOrganizationSignals`** (per org `id`) — Sumble's curated recent triggers:
+  champion/leadership moves, new hires on tracked tech, hiring and tech-adoption
+  trends. Each signal has a `title`/`subtitle`, `date`, `priority`, `sales_angle`,
+  and a deep-link `sumble_url`; `person_id`/`job_post_id` hand off to
+  `FindMatchAndEnrichPeople`/`FindMatchAndEnrichJobs` for follow-up. Optionally scope
+  to `technology_slugs`. Cost: 1 cr/signal returned, **free when the org has none**.
+  This is the fastest "why now" — start here.
+- **`FindMatchAndEnrichJobs`** — on-thesis hiring scoped to the org `AND (project IN
+  (...) OR technology_category IN (...)) AND hiring_period EQ '3mo'` (`1mo` freshest,
+  `6mo` wider). Rank by volume + recency; pull `description` + `related_people` for
+  the single strongest — that's the why-now language and the hiring manager.
 
 One org enrich + one jobs pass covers most of this cheaply; spend more only on
 accounts that survive the first look. Always surface URLs.
