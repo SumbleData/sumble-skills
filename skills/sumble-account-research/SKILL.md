@@ -99,7 +99,8 @@ and collect enablement alongside.
    plays, persona / ICP profiles, battlecards (from Seismic / Saleshood / Highspot /
    a doc). Don't skip this. If they don't have it handy, proceed on the company
    profile and ask again before producing the deliverable (Step 5d).
-3. **Synthesize** the two into one short profile (sales plays + key personas + key
+3. If they have defined Sales Plays that are named and sufficiently distinct, explicity ask the user if they have a perspective on which Sales Play they'd like to chase. Present them with the options and get them to select. Allow us to let us suggest something if they don't have an opinion.
+4. **Synthesize** the two into one short profile (sales plays + key personas + key
    vs other-tier tech / functions / projects + good-fit-account heuristics), and
    **save it as a cache** (see **The Sumble profile cache**) — in the background, as
    a byproduct, never blocking the first insight. On ephemeral surfaces, offer the
