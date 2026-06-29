@@ -37,7 +37,6 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote_plus, urlencode
 
 APP_DIR = Path(__file__).resolve().parent
 API_URL = os.environ.get("SUMBLE_API_BASE", "https://api.sumble.com/v6") + "/organizations"
@@ -365,15 +364,9 @@ def effective_weights(config: dict) -> tuple[dict[str, float], list[str]]:
     return eff, dropped
 
 
-def score_row(row: dict, config: dict, eff: dict[str, float]) -> tuple[float, float, str]:
-    """Return (base_score 0-100, adjustment_factor, adjustment_detail).
-
-    final score = base_score * adjustment_factor. The boost/penalty factor and
-    its human-readable detail are returned separately so the output shows the
-    profile adjustment explicitly instead of folding it into the contributions.
-    """
+def score_row(row: dict, config: dict, eff: dict[str, float]) -> float:
     signals = config["signals"]
-    base = 0.0
+    score = 0.0
     for key, frac in eff.items():
         sig = signals[key]
         norm = normalise(
@@ -381,71 +374,21 @@ def score_row(row: dict, config: dict, eff: dict[str, float]) -> tuple[float, fl
             sig.get("transform", "log"),
             sig.get("p99", 1e-9),
         )
-        base += frac * norm
-    factor = 1.0
-    bits: list[str] = []
+        score += frac * norm
     for m in config.get("multipliers", []):
         pct = float(m.get("default_pct") or 0) / 100.0
         if pct > 0 and row.get(m["column"]):
-            factor *= 1 - pct
-            bits.append(f"{m.get('label') or m['column']} -{round(pct * 100)}%")
+            score *= 1 - pct
     row_tags = {t.strip() for t in str(row.get("tags") or "").split("|") if t.strip()}
     for entry in config.get("tag_multipliers", []):
         tag = entry.get("tag")
         pct = float(entry.get("pct") or 0) / 100.0
         if tag and pct > 0 and tag in row_tags:
-            boost = entry.get("direction") == "boost"
-            factor *= (1 + pct) if boost else (1 - pct)
-            bits.append(f"{tag} {'+' if boost else '-'}{round(pct * 100)}%")
-    return base * 100.0, factor, "; ".join(bits)
+            score *= (1 + pct) if entry.get("direction") == "boost" else (1 - pct)
+    return score * 100.0
 
 
 # ---------- Per-account pipeline ---------------------------------------------
-
-
-def sumble_link(base: str, slug: str, spec: dict | None) -> str:
-    """Per-org Sumble deep link for a signal's sumble_link spec — same URL
-    shape as the app's buildSumbleLink (filters → advanced-search `as=` JSON)."""
-    if not spec or not slug:
-        return ""
-    path = spec.get("path", "") or ""
-    url = f"{base}{slug}{path}"
-    raw_filters = {
-        field: values
-        for field, values in (spec.get("filters") or {}).items()
-        if isinstance(values, list) and values
-    }
-    # technology + technology_category share ONE OR group: an ICP "tech" can
-    # be an individual tool or a predefined Sumble category, and the page
-    # should match jobs hitting either — separate groups would AND them.
-    groups: list[dict] = []
-    tech_done = False
-    for field, values in raw_filters.items():
-        if field in ("technology", "technology_category"):
-            if tech_done:
-                continue
-            groups.append({
-                "operator": "OR",
-                "fields": {
-                    k: {"include": raw_filters[k], "exclude": []}
-                    for k in ("technology", "technology_category")
-                    if k in raw_filters
-                },
-            })
-            tech_done = True
-            continue
-        groups.append(
-            {"operator": "OR", "fields": {field: {"include": values, "exclude": []}}}
-        )
-    if not groups:
-        return url
-    params: list[tuple[str, str]] = []
-    if "people" in path:
-        params += [("sort", "Sumble Lead Score"), ("desc", "1")]
-    params.append(
-        ("as", json.dumps({"operator": "AND", "children": groups}, separators=(",", ":")))
-    )
-    return url + "?" + urlencode(params, quote_via=quote_plus)
 
 
 def build_row(account: dict, resp_org: dict, config: dict, eff: dict[str, float]) -> dict:
@@ -456,42 +399,23 @@ def build_row(account: dict, resp_org: dict, config: dict, eff: dict[str, float]
     if industry == "Professional Services" and "professional_services" not in tags:
         tags.append("professional_services")
 
-    slug = attrs.get("slug") or ""
-    link_base = config.get("sumble_url_base", "https://sumble.com/orgs/")
-
     row: dict[str, Any] = dict(account)
     row["matched_org_id"] = attrs.get("id")
     row["matched_domain"] = attrs.get("url")
     row["name"] = attrs.get("name") or account.get("name") or ""
     row["industry"] = industry
-    # Always carried (blank when unmatched) — part of the score-sheet contract.
-    row["headquarters_country"] = attrs.get("headquarters_country") or ""
     row["employee_count_int"] = _exact_employee_count(attrs)
     row["jobs_count"] = int(attrs.get("jobs_count") or 0)
     row["teams_count"] = int(attrs.get("teams_count") or 0)
     row["tags"] = "|".join(tags)
     row["is_it_services"] = 1 if "it_services" in tags else 0
     row["is_professional_services"] = 1 if industry == "Professional Services" else 0
-    # Deep links: the org page, plus one per signal that carries a sumble_link
-    # spec — so the scored output is clickable, like the app's score.csv.
-    row["sumble_url"] = f"{link_base}{slug}" if slug else ""
 
     for key in eff:
         sig = config["signals"][key]
         row[sig["column"]] = signal_raw(sig, ents, attrs)
-        if sig.get("sumble_link"):
-            row[f"{sig['column']}_link"] = sumble_link(
-                link_base, slug, sig.get("sumble_link")
-            )
 
-    if attrs.get("id"):
-        base_score, factor, detail = score_row(row, config, eff)
-    else:
-        base_score, factor, detail = 0.0, 1.0, ""
-    row["base_score"] = round(base_score, 4)
-    row["profile_adjustment"] = round(factor, 4)
-    row["profile_adjustment_detail"] = detail
-    row["score"] = round(base_score * factor, 4)
+    row["score"] = round(score_row(row, config, eff), 4) if attrs.get("id") else 0.0
     return row
 
 
@@ -547,9 +471,7 @@ def main() -> None:
         )
 
     scored.sort(key=lambda r: r.get("score", 0), reverse=True)
-    for rank, r in enumerate(scored, 1):
-        r["rank"] = rank
-    fieldnames: list[str] = ["rank"]
+    fieldnames: list[str] = []
     for r in scored:
         for k in r:
             if k not in fieldnames:

@@ -4,18 +4,12 @@ Reads data.csv (the immutable RAW API-pull file — never modified here) and the
 weights config, and writes ONE complete file:
   - score.csv : the single human-facing sheet, sorted by rank. It is a SUPERSET
                 of data.csv: `rank` (far left) → EVERY data.csv column (raw
-                signals + identity) → `score` → `base_score` →
-                `profile_adjustment` → `profile_adjustment_detail` → one
-                CONTRIBUTION column per signal (points = norm *
-                effective_weight * 100, so the contributions SUM EXACTLY to
-                `base_score`) → deep links on the far right (`sumble_url` org
-                page + one per signal). The multiplicative boosts/penalties are
-                NOT folded into the contributions — they're surfaced explicitly:
-                `score = base_score * profile_adjustment`, and the detail column
-                names each applied boost/penalty (e.g. `digital_native +15%;
-                it_services -35%`). Signals whose TOTAL contribution across all
-                rows is 0 are dropped (from the contribution columns only;
-                their raw column is still present).
+                signals + identity) → `score` → one CONTRIBUTION column per
+                signal (points = norm * effective_weight * multiplier * 100, so
+                the contributions SUM EXACTLY to `score`) → deep links on the far
+                right (`sumble_url` org page + one per signal). Signals whose
+                TOTAL contribution across all rows is 0 are dropped (from the
+                contribution columns only; their raw column is still present).
 
 So you only ever need score.csv — it has the data, the score, the per-signal
 contributions, and the deep links in one place. data.csv is the immutable raw
@@ -44,10 +38,6 @@ IDENTITY_PREFERRED = [
     "headquarters_country", "industry", "list_type", "crm_parent_name",
 ]
 
-# Columns the sheet must carry even when data.csv lacks them (emitted blank):
-# the HQ country is part of the score-sheet contract.
-ALWAYS_EMIT = {"headquarters_country"}
-
 
 def _f(v: object) -> float:
     try:
@@ -63,33 +53,11 @@ def _sumble_link(base: str, slug: str, spec: dict | None) -> str:
         return ""
     path = spec.get("path", "") or ""
     url = f"{base}{slug}{path}"
-    raw_filters = {
-        field: values
+    groups = [
+        {"operator": "OR", "fields": {field: {"include": values, "exclude": []}}}
         for field, values in (spec.get("filters") or {}).items()
         if isinstance(values, list) and values
-    }
-    # technology + technology_category share ONE OR group: an ICP "tech" can
-    # be an individual tool or a predefined Sumble category, and the page
-    # should match jobs hitting either — separate groups would AND them.
-    groups: list[dict] = []
-    tech_done = False
-    for field, values in raw_filters.items():
-        if field in ("technology", "technology_category"):
-            if tech_done:
-                continue
-            groups.append({
-                "operator": "OR",
-                "fields": {
-                    k: {"include": raw_filters[k], "exclude": []}
-                    for k in ("technology", "technology_category")
-                    if k in raw_filters
-                },
-            })
-            tech_done = True
-            continue
-        groups.append(
-            {"operator": "OR", "fields": {field: {"include": values, "exclude": []}}}
-        )
+    ]
     if not groups:
         return url
     params: list[tuple[str, str]] = []
@@ -198,39 +166,25 @@ def build_score_sheet(app_dir: Path, weights_path: Path | None = None) -> dict[s
     mults = config.get("multipliers", []) or []
     tag_mults = config.get("tag_multipliers", []) or []
 
-    # Per-row per-signal contribution (points) + scores. Contributions are kept
-    # UNSCALED so they sum exactly to `base_score`; the multiplicative
-    # boosts/penalties are surfaced separately as `profile_adjustment` (the
-    # combined factor) + `profile_adjustment_detail` (which ones applied), with
-    # `score = base_score * profile_adjustment`.
+    # Per-row per-signal contribution (points) + final score. Contributions are
+    # scaled by the row's multiplier factor so they SUM EXACTLY to the score.
     contrib: dict[str, list[float]] = {k: [0.0] * len(rows) for k in signals}
     scores: list[float] = []
-    base_scores: list[float] = []
-    factors: list[float] = []
-    details: list[str] = []
     for i, r in enumerate(rows):
         per = {k: norms[k][i] * eff.get(k, 0.0) for k in signals}
         base = sum(per.values())
         mult = 1.0
-        bits: list[str] = []
         for m in mults:
             pct = _f(m.get("default_pct")) / 100.0
-            # data.csv flag columns are strings — "0" must read as unset.
-            if pct > 0 and _f(r.get(m.get("column"))) > 0:
+            if pct > 0 and r.get(m.get("column")):
                 mult *= 1 - pct
-                bits.append(f"{m.get('label') or m.get('column')} -{round(pct * 100)}%")
         row_tags = {t.strip() for t in str(r.get("tags") or "").split("|") if t.strip()}
         for e in tag_mults:
             pct = _f(e.get("pct")) / 100.0
             if e.get("tag") in row_tags and pct > 0:
-                boost = e.get("direction") == "boost"
-                mult *= (1 + pct) if boost else (1 - pct)
-                bits.append(f"{e.get('tag')} {'+' if boost else '-'}{round(pct * 100)}%")
+                mult *= (1 + pct) if e.get("direction") == "boost" else (1 - pct)
         for k in signals:
-            contrib[k][i] = round(per[k] * 100.0, 4)
-        base_scores.append(round(base * 100.0, 4))
-        factors.append(round(mult, 4))
-        details.append("; ".join(bits))
+            contrib[k][i] = round(per[k] * mult * 100.0, 4)
         scores.append(round(base * mult * 100.0, 4))
 
     order = sorted(range(len(rows)), key=lambda i: -scores[i])
@@ -257,26 +211,19 @@ def build_score_sheet(app_dir: Path, weights_path: Path | None = None) -> dict[s
     # in their data.csv order — followed by score, rank, contributions, links. So
     # the user never needs to join score.csv back to data.csv; data.csv is just
     # the immutable raw archive the app re-scores from.
-    ident = [
-        c for c in IDENTITY_PREFERRED if c in raw_fields or c in ALWAYS_EMIT
-    ] + [c for c in raw_fields if c not in IDENTITY_PREFERRED]
+    ident = [c for c in IDENTITY_PREFERRED if c in raw_fields] + [
+        c for c in raw_fields if c not in IDENTITY_PREFERRED
+    ]
     base_url = config.get("sumble_url_base", "https://sumble.com/orgs/")
     slug_col = config.get("slug_column", "slug")
-    # Per-signal deep links: a signal qualifies via its sumble_link spec OR a
-    # {column}_link column in data.csv — either source alone is enough, so the
-    # sheet always carries links even when one of them is missing.
-    link_keys = [
-        k for k in live
-        if signals[k].get("sumble_link") or f"{signals[k]['column']}_link" in raw_fields
-    ]
+    # Per-signal deep links for the live signals that carry a sumble_link.
+    link_keys = [k for k in live if signals[k].get("sumble_link")]
 
-    # Layout: rank (far left) → all data columns → score → base_score →
-    # profile_adjustment (+detail) → contribution cols → deep links (org page +
-    # one per signal) on the far right. Contributions sum to base_score;
-    # score = base_score × profile_adjustment.
+    # Layout: rank (far left) → all data columns → score → contribution cols →
+    # deep links (org page + one per signal) on the far right. Contributions sum
+    # to score.
     score_fields = (
-        ["rank"] + ident
-        + ["score", "base_score", "profile_adjustment", "profile_adjustment_detail"]
+        ["rank"] + ident + ["score"]
         + [labels[k] for k in live]
         + ["sumble_url"] + [f"{labels[k]} link" for k in link_keys]
     )
@@ -288,18 +235,12 @@ def build_score_sheet(app_dir: Path, weights_path: Path | None = None) -> dict[s
         for i in order:
             slug = rows[i].get(slug_col, "") or ""
             org_url = rows[i].get("sumble_url") or (f"{base_url}{slug}" if slug else "")
-            row = [rank_of[i]] + [rows[i].get(c, "") for c in ident]
-            row += [scores[i], base_scores[i], factors[i], details[i]]
+            row = [rank_of[i]] + [rows[i].get(c, "") for c in ident] + [scores[i]]
             row += [contrib[k][i] for k in live]
             row += [org_url]
-            # Per-signal links prefer the API's canonical URL ({column}_link in
-            # data.csv); when that's missing or empty, build the URL from the
-            # signal's sumble_link spec so the sheet is never linkless.
-            row += [
-                rows[i].get(f"{signals[k]['column']}_link", "")
-                or _sumble_link(base_url, slug, signals[k].get("sumble_link"))
-                for k in link_keys
-            ]
+            # Per-signal links come straight from the API ({column}_link in
+            # data.csv), not a hand-built URL.
+            row += [rows[i].get(f"{signals[k]['column']}_link", "") for k in link_keys]
             w.writerow(row)
     tmp2.replace(score_path)
 

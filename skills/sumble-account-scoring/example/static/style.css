@@ -962,17 +962,6 @@ tbody tr:last-child td {
   opacity: 0.7;
 }
 
-/* Breakdown summary footer: base score → boost/penalty lines → final score.
-   Makes the multiplicative profile adjustment explicit in the panel. */
-#breakdown-table tr.breakdown-summary td {
-  border-top: 1px solid var(--border, #e2e8f0);
-  font-weight: 600;
-}
-
-#breakdown-table tr.breakdown-adjust td {
-  color: var(--muted, #64748b);
-}
-
 .contrib-bar-cell {
   display: flex;
   align-items: center;
@@ -1107,92 +1096,6 @@ input[type="range"]:focus::-moz-range-thumb {
 .multiplier-row input[type="range"]:focus::-webkit-slider-thumb,
 .multiplier-row input[type="range"]:focus::-moz-range-thumb {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
-}
-
-/* LLM whitespace-filter verdict in the breakdown panel (Stage 5). */
-.llm-fit-box {
-  margin: 10px 0 2px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 12.5px;
-}
-.llm-fit-box.fit {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-}
-.llm-fit-box.unfit {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-}
-.llm-fit-badge {
-  font-weight: 600;
-  margin-right: 8px;
-}
-.llm-fit-box.fit .llm-fit-badge {
-  color: #047857;
-}
-.llm-fit-box.unfit .llm-fit-badge {
-  color: #b91c1c;
-}
-.llm-fit-provider {
-  color: #64748b;
-  font-size: 11px;
-}
-.llm-fit-reason {
-  margin-top: 4px;
-  color: #334155;
-  line-height: 1.45;
-}
-
-/* Stage-5 whitespace-fit chips (LLM filter). The Whitespace chip splits
-   into three: unprocessed (neutral), ICP fit (green), not a fit (red). */
-.cat-chip.cat-ws_fit.active {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #047857;
-}
-.cat-chip.cat-ws_unfit.active {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #b91c1c;
-}
-.cat-chip.cat-ws_unprocessed.active {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #475569;
-}
-
-/* Sortable column headers + in-header employee size filter. */
-th.sortable {
-  cursor: pointer;
-  user-select: none;
-}
-th.sortable .th-sort-label {
-  cursor: pointer;
-}
-.sort-arrow {
-  font-size: 9px;
-  color: #16a34a;
-}
-.th-size-filter {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  margin-top: 4px;
-  font-weight: 400;
-  justify-content: flex-end;
-}
-.th-size-input {
-  width: 56px;
-  font-size: 11px;
-  padding: 2px 4px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font-weight: 400;
-}
-#download-filtered {
-  margin-left: auto;
-  flex-shrink: 0;
 }
 
 /* Fictitious-example demo banner */

@@ -90,6 +90,11 @@
       "max": 0.8,
       "label": "Communications"
     },
+    "content-creator": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Content Creator"
+    },
     "content-marketing": {
       "min": 0.45,
       "max": 0.8,
@@ -149,6 +154,11 @@
       "min": 0.45,
       "max": 0.8,
       "label": "Inside Sales Representative"
+    },
+    "interpreter": {
+      "min": 0.45,
+      "max": 0.8,
+      "label": "Interpreter"
     },
     "key-account-manager": {
       "min": 0.45,
@@ -251,12 +261,12 @@
     "gold_column": "is_icp_gold"
   },
   "filters_applied": {
-    "seniority_floor_label": "Head",
-    "seniority_floor_rank": 7,
+    "seniority_floor_label": "All levels",
+    "seniority_floor_rank": 0,
     "icp_job_function_count": 5,
     "icp_skill_count": 27,
-    "calibration_companies": 100,
-    "total_people": 4218,
+    "calibration_companies": 50,
+    "total_people": 52191,
     "gold_people": 0
   }
 }

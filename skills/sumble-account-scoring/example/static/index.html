@@ -77,10 +77,15 @@
           <input id="search-input" type="search"
                  placeholder="Search visible columns… (press / to focus)"
                  autocomplete="off" />
-          <button id="download-filtered" class="btn-download btn-download-secondary"
-                  type="button"
-                  title="Download a CSV of exactly the rows currently shown (category chips, search, size filter and sort applied)">
-            Download filtered view</button>
+          <div id="size-filter" class="size-filter">
+            <label class="size-filter-label" for="size-min">Employees:</label>
+            <input id="size-min" type="number" min="0" inputmode="numeric"
+                   placeholder="min" class="size-filter-input" />
+            <span class="size-filter-dash">–</span>
+            <input id="size-max" type="number" min="0" inputmode="numeric"
+                   placeholder="max" class="size-filter-input" />
+            <button id="size-clear" class="btn-link size-filter-clear" type="button">Clear</button>
+          </div>
         </div>
 
         <div class="table-wrap">

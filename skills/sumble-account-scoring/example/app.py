@@ -22,7 +22,7 @@ import math
 import os
 import sys
 from datetime import datetime, timezone
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -352,10 +352,6 @@ def load_state() -> dict[str, Any]:
         "is_icp_gold",
         "account_category",
         "tags",
-        # Stage 5 whitespace-filter verdict (shown in the breakdown panel).
-        "ws_fit",
-        "ws_fit_reason",
-        "ws_filter_provider",
         *table_cols,
         *[m["column"] for m in multipliers],
     ]:
@@ -370,7 +366,11 @@ def load_state() -> dict[str, Any]:
     # ≥2 distinct non-blank categories exist; a single-category (or Branch B
     # blank) run keeps the table clean.
     _cat_order = [
-        "customer", "allocated", "unallocated", "whitespace", "whitespace_subsidiary",
+        "customer",
+        "allocated",
+        "unallocated",
+        "whitespace",
+        "whitespace_subsidiary",
     ]
     present = {str(r.get("account_category") or "") for r in universe}
     categories_present = [c for c in _cat_order if c in present]
@@ -435,9 +435,28 @@ def _row_payload(
         else:
             out[c] = v
     out["in_crm"] = bool(row.get("in_crm", False))
-    for key in config["signals"]:
+    # Concentration signals (persona "% of company", tech "team share") have no
+    # Sumble page that shows that share view, so they get no deep link — their
+    # {column}_link is intentionally not passed through.
+    no_link_categories = {
+        "icp_persona_concentration",
+        "relevant_tech_team_concentration",
+    }
+    for key, spec in config["signals"].items():
         out[f"norm_{key}"] = float(row.get(f"norm_{key}", 0) or 0)
         out[f"raw_{key}"] = float(row.get(f"raw_{key}", 0) or 0)
+        # Per-signal Sumble deep link ({column}_link in data.csv). The client
+        # reads row[`${spec.column}_link`] to turn each breakdown row into a
+        # link; without this passthrough the columns are stripped and the
+        # signals render as plain text.
+        if spec.get("category") in no_link_categories:
+            continue
+        link_col = f"{spec['column']}_link"
+        if link_col in row:
+            out[link_col] = row.get(link_col) or None
+    # Org-level link the breakdown header uses for "Open in Sumble →".
+    if "sumble_url" in row:
+        out["sumble_url"] = row.get("sumble_url") or None
     for m in multipliers:
         out[m["column"]] = bool(row.get(m["column"]) or False)
     return out
