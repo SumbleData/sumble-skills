@@ -47,6 +47,19 @@
     "gold_column": "is_icp_gold"
   },
 
+  "icp": {
+    "_comment": "Self-contained ICP definition — the ACTUAL slugs (not just counts) so a coding agent can re-implement the score without re-deriving the ICP. skill_score counts a person's technologies present in icp.skills; the ICP population is icp.job_functions at/above icp.seniority_floor.rank.",
+    "job_functions": [
+      { "slug": "sales", "name": "Sales" },
+      { "slug": "revenue-operations", "name": "Revenue Operations" }
+    ],
+    "skills": [
+      { "slug": "salesforce", "name": "Salesforce" },
+      { "slug": "outreach", "name": "Outreach" }
+    ],
+    "seniority_floor": { "label": "Manager and above", "rank": 4 }
+  },
+
   "filters_applied": {
     "seniority_floor_label":    "Manager and above",
     "seniority_floor_rank":     4,

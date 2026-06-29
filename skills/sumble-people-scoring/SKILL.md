@@ -426,6 +426,15 @@ blend toward the gold set (see "Default weights + calibration") and rewrites
 the user (default vs fitted held-out AUC, adopted or not). Do NOT hand-edit
 `config.json` — fix the spec and re-run the scripts instead.
 
+`config.json` (and the saved `people-scoring-weights.json`) carries a
+self-contained **`icp`** block — the ACTUAL ICP `job_functions` and `skills`
+slugs (with names) plus `seniority_floor`, not just the `filters_applied`
+counts. This is what makes the config re-implementable: a coding agent scoring
+a fresh population reads `config["icp"]["skills"]`/`["job_functions"]` directly
+instead of re-deriving the ICP. Keep `spec.json` carrying full
+`personas`/`skills` (slug+name) so the block populates; never reduce the ICP to
+counts only.
+
 App behaviour (tabs, filters, badges, Save button, Download score sheet,
 weights overlay) is implemented in the template and documented in
 `template/README.md` — don't restate it in the generated README.

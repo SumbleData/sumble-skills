@@ -124,8 +124,17 @@ function fmtFloat(x, d = 1) {
   return x == null || Number.isNaN(x) ? "—" : Number(x).toFixed(d);
 }
 
+function fmtPct(x) {
+  // Growth ratios are stored as ratios (0.5 = +50% YoY); show them as percents.
+  if (x == null || Number.isNaN(x)) return "—";
+  const pct = Number(x) * 100;
+  return (pct > 0 ? "+" : "") + pct.toFixed(0) + "%";
+}
+
 function fmtRaw(x, fmt) {
-  return fmt === "int" ? fmtInt(x) : fmtFloat(x);
+  if (fmt === "int") return fmtInt(x);
+  if (fmt === "pct") return fmtPct(x);
+  return fmtFloat(x);
 }
 
 // Build a deep link to a Sumble org page from a signal's sumble_link spec.

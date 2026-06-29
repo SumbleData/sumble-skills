@@ -186,6 +186,7 @@
       "default_within": 20.82,
       "p99": 5.0,
       "api_supported": true,
+      "fmt": "pct",
       "source": {
         "why": "Persona growth is a buying-window proxy \u2014 orgs growing SDR are scaling that function.",
         "kind": "sumble_api",
@@ -289,6 +290,7 @@
       "default_within": 20.4,
       "p99": 5.0,
       "api_supported": true,
+      "fmt": "pct",
       "source": {
         "why": "Persona growth is a buying-window proxy \u2014 orgs growing Sales are scaling that function.",
         "kind": "sumble_api",
@@ -392,6 +394,7 @@
       "default_within": 19.99,
       "p99": 5.0,
       "api_supported": true,
+      "fmt": "pct",
       "source": {
         "why": "Persona growth is a buying-window proxy \u2014 orgs growing Account Executive are scaling that function.",
         "kind": "sumble_api",
@@ -495,6 +498,7 @@
       "default_within": 19.59,
       "p99": 4.0,
       "api_supported": true,
+      "fmt": "pct",
       "source": {
         "why": "Persona growth is a buying-window proxy \u2014 orgs growing Revenue Operations are scaling that function.",
         "kind": "sumble_api",
@@ -598,6 +602,7 @@
       "default_within": 19.2,
       "p99": 4.0,
       "api_supported": true,
+      "fmt": "pct",
       "source": {
         "why": "Persona growth is a buying-window proxy \u2014 orgs growing Marketing are scaling that function.",
         "kind": "sumble_api",

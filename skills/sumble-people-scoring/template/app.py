@@ -179,6 +179,7 @@ def build_weights_file(config: dict[str, Any]) -> dict[str, Any]:
         "seniority": config.get("seniority", {}),
         "one_p_signals": config.get("one_p_signals", []),
         "flags": config.get("flags", {}),
+        "icp": config.get("icp", {}),
         "filters_applied": config.get("filters_applied", {}),
     }
 

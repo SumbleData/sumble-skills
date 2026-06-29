@@ -224,9 +224,18 @@ def resolve_crm(raw: Path, api_key: str) -> set[int]:
 # Ported from the standalone whitespace skill so this skill fully subsumes it.
 
 
-def _emp_gate(min_emp: int) -> str:
-    # employee_count takes a range-string value ('min-' = >= min), not a GTE op.
-    return f"employee_count EQ {sumble_v6._q(f'{min_emp}-')}" if min_emp > 0 else ""
+def _emp_gate(min_emp: int, max_emp: int = 0) -> str:
+    # employee_count takes a range-string value, not a GTE op:
+    #   'min-'     = >= min
+    #   'min-max'  = bounded band
+    #   '-max'     = <= max
+    if min_emp > 0 and max_emp > 0:
+        return f"employee_count EQ {sumble_v6._q(f'{min_emp}-{max_emp}')}"
+    if min_emp > 0:
+        return f"employee_count EQ {sumble_v6._q(f'{min_emp}-')}"
+    if max_emp > 0:
+        return f"employee_count EQ {sumble_v6._q(f'-{max_emp}')}"
+    return ""
 
 
 def _and(*parts: str) -> str:
@@ -304,7 +313,8 @@ def select_candidates_stratified(
     the CRM and everything chosen before it; all gate on a min-employee floor."""
     filters = spec.get("universe_filters", {})
     min_emp = int(filters.get("min_employees", DEFAULT_MIN_EMPLOYEES) or 0)
-    gate = _emp_gate(min_emp)
+    max_emp = int(filters.get("max_employees", 0) or 0)
+    gate = _emp_gate(min_emp, max_emp)
     excl = _exclude_clause(filters)
 
     key_tech_dicts = [t for t in spec["techs"] if t.get("tier") != "other"]
@@ -382,13 +392,14 @@ def select_candidates_ordered(
     (OR of techs + projects), ranked by one column."""
     filters = spec.get("universe_filters", {})
     min_emp = int(filters.get("min_employees", DEFAULT_MIN_EMPLOYEES) or 0)
+    max_emp = int(filters.get("max_employees", 0) or 0)
     projects = [p["slug"] for p in (spec.get("projects") or [])]
     tc = sumble_v6.tech_clause(spec["techs"])  # individual + category techs
     terms = [tc] if tc else []
     if projects:
         terms.append(_project_clause(projects))
     icp = "(" + " OR ".join(terms) + ")" if terms else ""
-    query = _and(icp, _emp_gate(min_emp), _exclude_clause(filters)) or "employee_count EQ '1-'"
+    query = _and(icp, _emp_gate(min_emp, max_emp), _exclude_clause(filters)) or "employee_count EQ '1-'"
     chosen = rank_stratum(api_key, query, order_col, pool, set(exclude_ids))
     comp = {"strata": [{"stratum": order_col, "order_by": order_col, "wanted": pool,
                         "got": len(chosen)}], "total_selected": len(chosen),

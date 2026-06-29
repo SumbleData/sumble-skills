@@ -153,6 +153,27 @@ def main() -> None:
             for s in one_p
         ],
         "flags": {"crm_contact_column": "is_crm_contact", "gold_column": "is_icp_gold"},
+        # Self-contained ICP definition: the ACTUAL slugs (not just counts) so a
+        # coding agent can re-implement the score in a production pipeline without
+        # re-deriving the ICP. skill_score counts a person's technologies that fall
+        # in `icp.skills`; the ICP population is `icp.job_functions` at/above
+        # `icp.seniority_floor.rank`.
+        "icp": {
+            "job_functions": [
+                {"slug": p["slug"], "name": p.get("name") or p.get("label") or p["slug"]}
+                for p in personas
+                if p.get("slug")
+            ],
+            "skills": [
+                {"slug": s["slug"], "name": s.get("name") or s.get("label") or s["slug"]}
+                for s in skills
+                if s.get("slug")
+            ],
+            "seniority_floor": {
+                "label": floor.get("name") or "All levels",
+                "rank": floor.get("rank") or 0,
+            },
+        },
         "filters_applied": {
             "seniority_floor_label": floor.get("name") or "All levels",
             "seniority_floor_rank": floor.get("rank") or 0,

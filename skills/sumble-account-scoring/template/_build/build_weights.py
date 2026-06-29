@@ -300,6 +300,7 @@ def main() -> None:
         source: dict,
         sumble_link: dict | None = None,
         api_unsupported_reason: str | None = None,
+        fmt: str | None = None,
     ) -> None:
         sig: dict = {
             "label": label,
@@ -311,6 +312,10 @@ def main() -> None:
             "api_supported": api_supported,
             "source": source,
         }
+        if fmt is not None:
+            # Display hint for the raw-value column in the contribution
+            # breakdown ("int" | "pct"); defaults to a plain float.
+            sig["fmt"] = fmt
         if sumble_link is not None:
             sig["sumble_link"] = sumble_link
         if api_unsupported_reason:
@@ -370,6 +375,7 @@ def main() -> None:
             transform="linear",
             within=persona_decay[idx],
             api_supported=True,
+            fmt="pct",  # stored as a ratio (0.5); render as +50% in the breakdown
             source={
                 "why": (
                     f"Persona growth is a buying-window proxy — orgs growing "

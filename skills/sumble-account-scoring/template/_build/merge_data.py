@@ -129,6 +129,9 @@ def passes_universe_filters(row: dict, filters: dict) -> bool:
     pushes most of these, but this is the guaranteed safety net."""
     if int(row.get("employee_count_int") or 0) < int(filters.get("min_employees", 0) or 0):
         return False
+    max_emp = int(filters.get("max_employees", 0) or 0)
+    if max_emp and int(row.get("employee_count_int") or 0) > max_emp:
+        return False
     hq_whitelist = filters.get("hq_country_whitelist") or []
     if hq_whitelist and row.get("headquarters_country") not in hq_whitelist:
         return False
