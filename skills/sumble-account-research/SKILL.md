@@ -25,6 +25,10 @@ so the whole skill isn't loaded at once:
   branding) when no example is supplied (Step 5d). If a "powered by Sumble" mark is
   added, it follows the official guide — defer to the `sumble-brand-guidelines` skill
   if installed; the official Sumble logo ships in `assets/sumble-eyes-logo-512.png`.
+- `references/interactive-brief.md` — building the interactive HTML brief format card by
+  card, when chosen as the delivery medium (Step 1 / Step 5d); template + assets in `assets/`.
+- `references/writing-rules.md` — keep every line tight and non-AI-sounding; applies to all
+  copy the skill emits (Step 5d).
 
 If the Sumble MCP isn't available here, say so and produce the plan instead of
 pretending to run.
@@ -62,7 +66,10 @@ After the intro, ask two things and wait:
    own prep to formulate a strategy**, keep these light — there's no team convention to
    match, so default to a clean working doc unless they say otherwise):
    - **Format / medium** they want it delivered in (Google Doc, Slides, Notion, PDF,
-     a CRM field, Markdown, …), and
+     a CRM field, Markdown, or an **interactive HTML brief** — a self-contained webpage
+     where each signal is a clickable card that fans out into the play, the call, what
+     to test, who to reach, and their reporting line with a 1–10 Sumble confidence
+     score; build it per `references/interactive-brief.md`), and
    - whether they have an **example** to match — paste it or point you at one, so the
      structure, length, and tone match what their team already expects. **If they have
      no example, say you'll style it in their own company's branding** — and ask if they
@@ -187,7 +194,12 @@ manager), and **multithread** contacts; use `FindMatchAndEnrichPeople` +
 
 **5d. Produce the chosen deliverable** (from Step 1) — all built from the same
 research, grounded in internal context first, then a specific external signal, then
-the matching sales play / reference customer:
+the matching sales play / reference customer.
+
+**Write tight — strip the AI slop.** Whatever the deliverable, hold every line to
+`references/writing-rules.md`: cut the running start, lead with the point, kill the
+hedges and the em-dash-padded filler. It should read like a sharp rep wrote it, not a
+generated draft.
 
 - **Outreach sequences:** a multi-touch sequence for each priority person (≤3) —
   email plus optional LinkedIn / call steps, each touch a distinct angle (signal-led,
