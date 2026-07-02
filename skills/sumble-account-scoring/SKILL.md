@@ -725,6 +725,14 @@ name}` (technologies also list their `categories`). Use:
   job-function name to its canonical function.
 - **Projects** → `slug`.
 
+**Parent / aggregate personas.** A persona `name` may be a *parent* job function
+(e.g. `Sales` over its SDR / AE children, or `Sales, Marketing, Customer Support
+& Business Development` over Sales + Marketing). The `/v6/organizations` endpoint
+**aggregates the whole subtree** — `people_count`, growth, and concentration for
+a parent return the summed figures across every descendant function — and
+`lookup.py` resolves a parent term straight to its node, so a parent persona
+needs **no** `kind: "category"` flag (unlike techs).
+
 `GetMyCompanyProfile` still pre-fills the ICP; `lookup.py` just canonicalises
 the names. The only remaining `RunSqlQuery` is the tech-category roll-up below.
 
@@ -846,6 +854,13 @@ live in the scripts.
 
 **Credit cost** ≈ `(1 + paid-attributes + Σ entity-metrics)` per matched org
 (~16 for a typical ICP). Surface the estimate before running a large sample.
+
+**Timing** — enrichment runs as blocking ≤250-org POST batches, so wall-clock
+scales with the org count. Budget a **broad ~1–2 minutes per 1,000 enriched
+orgs** (a typical CRM + 10k-whitespace pull is ~10–20 minutes). **Give the user
+this rough time estimate alongside the credit estimate before any bulk
+enrichment run**, so a multi-minute fetch isn't a surprise — and run it in the
+background, surfacing progress between stages rather than blocking.
 
 > If the key isn't set yet, run `! python3 <skill_dir>/template/_build/set_api_key.py`
 > (no Python? `! sh <skill_dir>/template/_build/set_api_key.sh` does the same)
