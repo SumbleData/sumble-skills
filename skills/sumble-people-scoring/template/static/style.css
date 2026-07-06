@@ -66,6 +66,17 @@ button { font: inherit; cursor: pointer; }
   width: auto;
 }
 
+.page-title {
+  flex: 1;
+  margin: 0 0 0 18px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .topbar-meta {
   color: var(--fg-dim);
   font-size: 12px;
@@ -118,6 +129,35 @@ button { font: inherit; cursor: pointer; }
 }
 
 .slider-value { font-weight: 600; color: var(--accent); min-width: 32px; text-align: right; }
+
+/* Editable weight value next to each slider */
+.weight-num {
+  width: 56px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.weight-num:focus { outline: 1px solid var(--accent); }
+
+/* Pin toggle: pinned weights are excluded from pro-rata rebalancing */
+.slider-controls { display: inline-flex; align-items: center; gap: 4px; }
+.pin-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.22;
+  filter: grayscale(1);
+}
+.pin-btn:hover { opacity: 0.6; }
+.pin-btn.pinned { opacity: 1; filter: none; }
 
 .accordion {
   border: 1px solid var(--border);
@@ -222,6 +262,10 @@ button { font: inherit; cursor: pointer; }
 
 .tab-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 .tab-content.hidden { display: none; }
+
+/* Generic hide — several JS toggles (eval elements, contact-filter-wrap,
+   tab buttons) rely on this; without it they no-op. */
+.hidden { display: none !important; }
 
 .people-bar {
   display: flex;

@@ -27,6 +27,11 @@ const state = {
   sectionPct: {},    // section_key -> % (sums to 100)
   catPct: {},        // category_key -> % within its section (or % of total if no sections)
   withinPct: {},     // category_key -> { signal_key -> % within that category }
+  // Pin state, parallel to the three % maps above. A pinned entry keeps its
+  // exact value while its pool siblings redistribute (see redistribute()).
+  sectionPinned: {}, // section_key -> bool
+  catPinned: {},     // category_key -> bool
+  withinPinned: {},  // category_key -> { signal_key -> bool }
   multPct: {},       // multiplier_column -> %
   tagMult: [],       // [{tag, pct, direction: "penalty"|"boost"}]
   availableTags: [], // [{tag, count}] universe-wide tag inventory
@@ -119,6 +124,11 @@ function fmtFloat(x, d = 1) {
   return x == null || Number.isNaN(x) ? "—" : Number(x).toFixed(d);
 }
 
+// Weights display/entry at one-decimal granularity (internal floats untouched)
+function fmtW(v) {
+  return Math.round(v * 10) / 10;
+}
+
 function fmtPct(x) {
   // Growth is stored as a ratio (0.5 = +50% YoY, 33 = +3300%); show as percent.
   if (x == null || Number.isNaN(x)) return "—";
@@ -185,38 +195,54 @@ function signalsByCategory() {
 
 // Adjust `values[key]` to `next`. Redistribute the delta among the
 // other keys, proportional to their current values. Sum stays at total.
+// Keys for which `isPinned(k)` is true never absorb any of the delta: the
+// moved value is clamped so pinned keys keep their exact share, and only the
+// unpinned others rescale. Directly editing a pinned key is allowed — its own
+// pin only matters when a sibling moves.
 // Returns the actual new value (may be clamped if neighbours can't absorb the delta).
-function redistribute(values, key, next, total = 100) {
+function redistribute(values, key, next, total = 100, isPinned = () => false) {
   const keys = Object.keys(values);
   if (keys.length <= 1) {
     values[key] = total;
     return total;
   }
+  const others = keys.filter((k) => k !== key);
+  const free = others.filter((k) => !isPinned(k));
+  const pinnedSum = others.reduce(
+    (s, k) => s + (isPinned(k) ? values[k] ?? 0 : 0),
+    0,
+  );
+  if (free.length === 0) {
+    // Every other key is pinned: the only value consistent with the pool
+    // total is whatever the pinned keys leave over — snap to it.
+    const snapped = Math.round(Math.max(0, total - pinnedSum) * 10) / 10;
+    values[key] = snapped;
+    return snapped;
+  }
   const cur = values[key] ?? 0;
-  let nxt = Math.max(0, Math.min(total, Number(next)));
+  let nxt = Math.max(0, Math.min(total - pinnedSum, Number(next)));
   let delta = nxt - cur;
   if (delta === 0) return cur;
 
-  const others = keys.filter((k) => k !== key);
-  const othersSum = others.reduce((s, k) => s + (values[k] ?? 0), 0);
+  const freeSum = free.reduce((s, k) => s + (values[k] ?? 0), 0);
 
   if (delta < 0) {
     const give = -delta;
-    if (othersSum === 0) {
-      const each = give / others.length;
-      for (const k of others) values[k] = (values[k] ?? 0) + each;
+    if (freeSum === 0) {
+      const each = give / free.length;
+      for (const k of free) values[k] = (values[k] ?? 0) + each;
     } else {
-      for (const k of others) values[k] = (values[k] ?? 0) + give * ((values[k] ?? 0) / othersSum);
+      for (const k of free) values[k] = (values[k] ?? 0) + give * ((values[k] ?? 0) / freeSum);
     }
   } else {
-    if (othersSum === 0) {
+    if (freeSum === 0) {
       nxt = cur;
       delta = 0;
-    } else if (delta >= othersSum) {
-      nxt = cur + othersSum;
-      for (const k of others) values[k] = 0;
+    } else if (delta >= freeSum) {
+      nxt = cur + freeSum;
+      for (const k of free) values[k] = 0;
     } else {
-      for (const k of others) values[k] = (values[k] ?? 0) - delta * ((values[k] ?? 0) / othersSum);
+      for (const k of free) values[k] = (values[k] ?? 0) - delta * ((values[k] ?? 0) / freeSum);
     }
   }
   values[key] = nxt;
@@ -224,8 +250,9 @@ function redistribute(values, key, next, total = 100) {
   for (const k of keys) values[k] = Math.round(values[k] * 10) / 10;
   const sum = keys.reduce((s, k) => s + values[k], 0);
   if (Math.abs(sum - total) > 0.05 && keys.length > 1) {
-    // Push drift onto the "other" with the largest share
-    const bestOther = others.reduce((a, b) => (values[a] >= values[b] ? a : b), others[0]);
+    // Push drift onto the UNPINNED "other" with the largest share, so
+    // pinned values stay exactly as set.
+    const bestOther = free.reduce((a, b) => (values[a] >= values[b] ? a : b), free[0]);
     values[bestOther] += total - sum;
     values[bestOther] = Math.round(values[bestOther] * 10) / 10;
   }
@@ -360,30 +387,73 @@ function filteredRanked() {
 function makeSignalRow(catKey, signal, totalSignalsInCat) {
   const { key, spec } = signal;
   const within = (state.withinPct[catKey] || {})[key] || 0;
-  const wPct = el(
-    "span",
-    { class: "signal-pct" },
-    fmtFloat(within, 1) + "%",
+
+  // Shared by the slider and the number box so both feed the exact same
+  // redistribute -> rerender path. Returns the (possibly clamped) value.
+  const applyWithin = (v) => {
+    state.withinPct[catKey] ||= {};
+    const actual = redistribute(
+      state.withinPct[catKey],
+      key,
+      v,
+      100,
+      (k) => !!(state.withinPinned[catKey] || {})[k],
+    );
+    renderWithinPcts(catKey);
+    renderTable();
+    if (state.selectedId) updateBreakdown();
+    scheduleAutoSave();
+    return actual;
+  };
+
+  const wNum = el("input", {
+    type: "number",
+    class: "weight-num",
+    min: "0",
+    max: "100",
+    step: "0.1",
+    value: fmtFloat(within, 1),
+    oninput: (e) => {
+      const v = Number(e.target.value);
+      if (e.target.value === "" || !Number.isFinite(v)) return; // mid-typing
+      applyWithin(Math.max(0, Math.min(100, v)));
+    },
+    onblur: (e) => {
+      // Normalize after typing (clamps, fills an emptied box).
+      e.target.value = fmtFloat((state.withinPct[catKey] || {})[key] || 0, 1);
+    },
+  });
+  const wPin = el(
+    "button",
+    {
+      type: "button",
+      class: "pin-btn" + ((state.withinPinned[catKey] || {})[key] ? " pinned" : ""),
+      title: "Pin: keep this weight fixed when sibling sliders rebalance",
+      onclick: (e) => {
+        state.withinPinned[catKey] ||= {};
+        state.withinPinned[catKey][key] = !state.withinPinned[catKey][key];
+        e.target.classList.toggle("pinned", state.withinPinned[catKey][key]);
+      },
+    },
+    "📌",
   );
+  const wPct = el("span", { class: "signal-pct" }, wPin, wNum, "%");
 
   const wSlider = el("input", {
     type: "range",
     min: "0",
     max: "100",
     step: "0.5",
-    value: String(within),
+    value: String(fmtW(within)),
     oninput: (e) => {
-      const v = Number(e.target.value);
-      state.withinPct[catKey] ||= {};
-      const actual = redistribute(state.withinPct[catKey], key, v, 100);
-      e.target.value = String(actual);
-      renderWithinPcts(catKey);
-      renderTable();
-      if (state.selectedId) updateBreakdown();
-      scheduleAutoSave();
+      e.target.value = String(fmtW(applyWithin(Number(e.target.value))));
     },
   });
-  if (totalSignalsInCat <= 1) wSlider.disabled = true;
+  if (totalSignalsInCat <= 1) {
+    wSlider.disabled = true;
+    wNum.disabled = true;
+    wPin.disabled = true;
+  }
 
   // Flag signals that can't be reproduced from the public Sumble API.
   // They still count in the app's full model, but a public-API-only
@@ -416,7 +486,56 @@ function makeCategoryCard(catKey, catSpec, grouped) {
   const isEmpty = signals.length === 0;
   const expanded = !!state.expanded[catKey];
 
-  const pctSpan = el("span", { class: "category-pct" }, fmtFloat(state.catPct[catKey] || 0, 1) + "%");
+  // Shared by the slider and the number box so both feed the exact same
+  // redistribute -> rerender path. Returns the (possibly clamped) value.
+  const applyCatPct = (v) => {
+    const pool = poolForCategory(catKey);
+    const actual = redistribute(pool, catKey, v, 100, (k) => !!state.catPinned[k]);
+    if (pool !== state.catPct) {
+      for (const [k, val] of Object.entries(pool)) state.catPct[k] = val;
+    }
+    renderCategoryPcts();
+    renderTable();
+    if (state.selectedId) updateBreakdown();
+    scheduleAutoSave();
+    return actual;
+  };
+
+  const pctNum = el("input", {
+    type: "number",
+    class: "weight-num",
+    min: "0",
+    max: "100",
+    step: "0.1",
+    value: fmtFloat(state.catPct[catKey] || 0, 1),
+    oninput: (e) => {
+      const v = Number(e.target.value);
+      if (e.target.value === "" || !Number.isFinite(v)) return; // mid-typing
+      applyCatPct(Math.max(0, Math.min(100, v)));
+    },
+    onblur: (e) => {
+      // Normalize after typing (clamps, fills an emptied box).
+      e.target.value = fmtFloat(state.catPct[catKey] || 0, 1);
+    },
+    // Stop the click on the box from toggling collapse.
+    onclick: (e) => e.stopPropagation(),
+  });
+  const pctPin = el(
+    "button",
+    {
+      type: "button",
+      class: "pin-btn" + (state.catPinned[catKey] ? " pinned" : ""),
+      title: "Pin: keep this weight fixed when sibling sliders rebalance",
+      onclick: (e) => {
+        // Stop the click from toggling collapse.
+        e.stopPropagation();
+        state.catPinned[catKey] = !state.catPinned[catKey];
+        e.target.classList.toggle("pinned", state.catPinned[catKey]);
+      },
+    },
+    "📌",
+  );
+  const pctSpan = el("span", { class: "category-pct" }, pctPin, pctNum, "%");
 
   const header = el(
     "div",
@@ -440,22 +559,16 @@ function makeCategoryCard(catKey, catSpec, grouped) {
     min: "0",
     max: "100",
     step: "0.5",
-    value: String(state.catPct[catKey] || 0),
+    value: String(fmtW(state.catPct[catKey] || 0)),
     oninput: (e) => {
-      const v = Number(e.target.value);
-      const pool = poolForCategory(catKey);
-      const actual = redistribute(pool, catKey, v, 100);
-      if (pool !== state.catPct) {
-        for (const [k, val] of Object.entries(pool)) state.catPct[k] = val;
-      }
-      e.target.value = String(actual);
-      renderCategoryPcts();
-      renderTable();
-      if (state.selectedId) updateBreakdown();
-      scheduleAutoSave();
+      e.target.value = String(fmtW(applyCatPct(Number(e.target.value))));
     },
   });
-  if (isEmpty) slider.disabled = true;
+  if (isEmpty) {
+    slider.disabled = true;
+    pctNum.disabled = true;
+    pctPin.disabled = true;
+  }
 
   const sliderWrap = el("div", { class: "category-slider-wrap" }, slider);
 
@@ -502,11 +615,58 @@ function renderCategories() {
         "data-section": secKey,
       });
 
-      const secPct = el(
-        "span",
-        { class: "section-pct" },
-        fmtFloat(state.sectionPct[secKey] || 0, 1) + "%",
+      // Shared by the slider and the number box so both feed the exact same
+      // redistribute -> rerender path. Returns the (possibly clamped) value.
+      const applySectionPct = (v) => {
+        const actual = redistribute(
+          state.sectionPct,
+          secKey,
+          v,
+          100,
+          (k) => !!state.sectionPinned[k],
+        );
+        renderSectionPcts();
+        renderTable();
+        if (state.selectedId) updateBreakdown();
+        scheduleAutoSave();
+        return actual;
+      };
+
+      const secNum = el("input", {
+        type: "number",
+        class: "weight-num",
+        min: "0",
+        max: "100",
+        step: "0.1",
+        value: fmtFloat(state.sectionPct[secKey] || 0, 1),
+        oninput: (e) => {
+          const v = Number(e.target.value);
+          if (e.target.value === "" || !Number.isFinite(v)) return; // mid-typing
+          applySectionPct(Math.max(0, Math.min(100, v)));
+        },
+        onblur: (e) => {
+          // Normalize after typing (clamps, fills an emptied box).
+          e.target.value = fmtFloat(state.sectionPct[secKey] || 0, 1);
+        },
+        // Stop the click on the box from toggling collapse.
+        onclick: (e) => e.stopPropagation(),
+      });
+      const secPin = el(
+        "button",
+        {
+          type: "button",
+          class: "pin-btn" + (state.sectionPinned[secKey] ? " pinned" : ""),
+          title: "Pin: keep this weight fixed when sibling sliders rebalance",
+          onclick: (e) => {
+            // Stop the click from toggling collapse.
+            e.stopPropagation();
+            state.sectionPinned[secKey] = !state.sectionPinned[secKey];
+            e.target.classList.toggle("pinned", state.sectionPinned[secKey]);
+          },
+        },
+        "📌",
       );
+      const secPct = el("span", { class: "section-pct" }, secPin, secNum, "%");
 
       group.appendChild(
         el(
@@ -529,17 +689,11 @@ function renderCategories() {
         min: "0",
         max: "100",
         step: "0.5",
-        value: String(state.sectionPct[secKey] || 0),
+        value: String(fmtW(state.sectionPct[secKey] || 0)),
         oninput: (e) => {
           // Stop the click on the slider from toggling collapse.
           e.stopPropagation();
-          const v = Number(e.target.value);
-          const actual = redistribute(state.sectionPct, secKey, v, 100);
-          e.target.value = String(actual);
-          renderSectionPcts();
-          renderTable();
-          if (state.selectedId) updateBreakdown();
-          scheduleAutoSave();
+          e.target.value = String(fmtW(applySectionPct(Number(e.target.value))));
         },
         onclick: (e) => e.stopPropagation(),
       });
@@ -591,10 +745,10 @@ function renderCategoryPcts() {
   for (const [catKey, pct] of Object.entries(state.catPct)) {
     const card = document.querySelector(`.category[data-cat="${catKey}"]`);
     if (!card) continue;
-    const span = card.querySelector(".category-pct");
-    if (span) span.textContent = fmtFloat(pct, 1) + "%";
+    const num = card.querySelector(".category-pct input");
+    if (num && document.activeElement !== num) num.value = fmtFloat(pct, 1);
     const slider = card.querySelector('.category-slider-wrap input[type="range"]');
-    if (slider && document.activeElement !== slider) slider.value = String(pct);
+    if (slider && document.activeElement !== slider) slider.value = String(fmtW(pct));
   }
   renderSectionPcts();
 }
@@ -607,10 +761,10 @@ function renderSectionPcts() {
       `.section-group[data-section="${secKey}"]`,
     );
     if (!group) continue;
-    const span = group.querySelector(".section-pct");
-    if (span) span.textContent = fmtFloat(pct, 1) + "%";
+    const num = group.querySelector(".section-pct input");
+    if (num && document.activeElement !== num) num.value = fmtFloat(pct, 1);
     const slider = group.querySelector('.section-slider-wrap input[type="range"]');
-    if (slider && document.activeElement !== slider) slider.value = String(pct);
+    if (slider && document.activeElement !== slider) slider.value = String(fmtW(pct));
   }
 }
 
@@ -625,10 +779,10 @@ function renderWithinPcts(catKey) {
       `.signal-row[data-cat="${catKey}"][data-signal="${signalKey}"]`,
     );
     if (!row) continue;
-    const span = row.querySelector(".signal-pct");
-    if (span) span.textContent = fmtFloat(pct, 1) + "%";
+    const num = row.querySelector(".signal-pct input");
+    if (num && document.activeElement !== num) num.value = fmtFloat(pct, 1);
     const slider = row.querySelector('input[type="range"]');
-    if (slider && document.activeElement !== slider) slider.value = String(pct);
+    if (slider && document.activeElement !== slider) slider.value = String(fmtW(pct));
   }
 }
 
@@ -717,26 +871,52 @@ function renderMultipliers() {
   }
   section.classList.remove("hidden");
   for (const m of mults) {
-    const valueSpan = el("span", { class: "multiplier-pct" }, `${state.multPct[m.column]}%`);
+    const maxPct = m.max_pct ?? 75;
+
+    // Shared by the slider and the number box so both feed the exact same
+    // update -> rerender path.
+    const applyMult = (v) => {
+      state.multPct[m.column] = v;
+      renderTable();
+      if (state.selectedId) updateBreakdown();
+      scheduleAutoSave();
+    };
+
+    const num = el("input", {
+      type: "number",
+      class: "weight-num",
+      min: "0",
+      max: String(maxPct),
+      step: "5",
+      value: String(fmtW(state.multPct[m.column])),
+      oninput: (e) => {
+        const v = Number(e.target.value);
+        if (e.target.value === "" || !Number.isFinite(v)) return; // mid-typing
+        const clamped = Math.max(0, Math.min(maxPct, v));
+        applyMult(clamped);
+        if (document.activeElement !== slider) slider.value = String(fmtW(clamped));
+      },
+      onblur: (e) => {
+        // Normalize after typing (clamps, fills an emptied box).
+        e.target.value = String(fmtW(state.multPct[m.column]));
+      },
+    });
     const slider = el("input", {
       type: "range",
       min: "0",
-      max: String(m.max_pct ?? 75),
+      max: String(maxPct),
       step: "5",
-      value: String(state.multPct[m.column]),
+      value: String(fmtW(state.multPct[m.column])),
       oninput: (e) => {
-        state.multPct[m.column] = Number(e.target.value);
-        valueSpan.textContent = `${e.target.value}%`;
-        renderTable();
-        if (state.selectedId) updateBreakdown();
-        scheduleAutoSave();
+        applyMult(Number(e.target.value));
+        if (document.activeElement !== num) num.value = e.target.value;
       },
     });
     wrap.appendChild(
       el(
         "div",
         { class: "multiplier-row" },
-        el("label", {}, el("span", {}, m.label), valueSpan),
+        el("label", {}, el("span", {}, m.label), el("span", { class: "multiplier-pct" }, num, "%")),
         slider,
       ),
     );
@@ -1328,6 +1508,9 @@ function resetDefaults() {
   state.sectionPct = {};
   state.catPct = {};
   state.withinPct = {};
+  state.sectionPinned = {};
+  state.catPinned = {};
+  state.withinPinned = {};
   state.expanded = {};
   state.sectionExpanded = {};
 

@@ -422,6 +422,49 @@ function hideBreakdown() {
 
 // ---------- Sliders --------------------------------------------------------
 
+// Moving one slider rebalances all the others proportionally so the weights
+// always sum to 100. A slider at 0 stays at 0 (it has nothing to scale) —
+// unless the moved slider leaves no non-zero others, in which case the
+// remainder is split equally. Internally weights stay float; display rounds.
+function rebalanceWeights(movedKey, movedVal, src) {
+  const keys = Object.keys(_config.weights);
+  const cur = (k) => _config.weights[k].current ?? _config.weights[k].default ?? 0;
+  const isPinned = (k) => !!_config.weights[k].pinned;
+  const others = keys.filter((k) => k !== movedKey);
+  // PINNED weights never take pro-rata adjustments: only the unpinned others
+  // absorb the change, and the moved value is capped so pinned weights keep
+  // their share (sum stays 100). Directly editing a pinned weight is allowed.
+  const pinnedSum = others.filter(isPinned).reduce((s, k) => s + cur(k), 0);
+  const free = others.filter((k) => !isPinned(k));
+  const requested = movedVal;
+  movedVal = Math.max(0, Math.min(movedVal, 100 - pinnedSum));
+  if (!free.length) movedVal = 100 - pinnedSum; // nothing can absorb a change
+  const rest = Math.max(0, 100 - movedVal - pinnedSum);
+  const oldRest = free.reduce((s, k) => s + cur(k), 0);
+  _config.weights[movedKey].current = movedVal;
+  for (const k of free) {
+    _config.weights[k].current =
+      oldRest > 0 ? (cur(k) * rest) / oldRest : rest / free.length;
+  }
+  // Sync both controls for every weight — except the control the user is
+  // actively using (clobbering a number box mid-typing loses the caret).
+  // If the request was clamped (pins limit the range), snap that control too.
+  const clamped = movedVal !== requested;
+  for (const k of keys) {
+    const shown = fmtW(cur(k));
+    const slider = document.getElementById(`ws-${k}`);
+    const num = document.getElementById(`wn-${k}`);
+    const active = k === movedKey && !clamped;
+    if (slider && !(src === "slider" && active)) slider.value = shown;
+    if (num && !(src === "num" && active)) num.value = shown;
+  }
+}
+
+// Weights display/entry at one-decimal granularity (internal floats untouched)
+function fmtW(v) {
+  return Math.round(v * 10) / 10;
+}
+
 function renderWeightSliders() {
   const container = document.getElementById("weight-sliders");
   container.innerHTML = "";
@@ -432,17 +475,40 @@ function renderWeightSliders() {
     div.innerHTML = `
       <div class="slider-label">
         <span>${esc(spec.label)}</span>
-        <span class="slider-value" id="wv-${key}">${val}%</span>
+        <span class="slider-controls">
+          <button class="pin-btn${spec.pinned ? " pinned" : ""}" id="wp-${key}"
+                  title="Pin: keep this weight fixed when other sliders rebalance">📌</button>
+          <input type="number" class="weight-num" id="wn-${key}"
+                 min="${spec.min}" max="${spec.max}" step="0.1"
+                 value="${fmtW(val)}" />
+        </span>
       </div>
       <input type="range" id="ws-${key}" min="${spec.min}" max="${spec.max}"
-             value="${val}" step="1" />
+             value="${fmtW(val)}" step="0.1" />
     `;
     container.appendChild(div);
 
-    div.querySelector("input").addEventListener("input", (e) => {
-      _config.weights[key].current = parseInt(e.target.value, 10);
-      document.getElementById(`wv-${key}`).textContent = `${e.target.value}%`;
+    div.querySelector(`#wp-${key}`).addEventListener("click", (e) => {
+      spec.pinned = !spec.pinned;
+      e.target.classList.toggle("pinned", spec.pinned);
+    });
+
+    div.querySelector(`#ws-${key}`).addEventListener("input", (e) => {
+      rebalanceWeights(key, fmtW(parseFloat(e.target.value)), "slider");
       rerenderScores();
+    });
+    const num = div.querySelector(`#wn-${key}`);
+    num.addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!Number.isFinite(v)) return; // mid-typing (empty box)
+      rebalanceWeights(key, fmtW(Math.max(0, Math.min(100, v))), "num");
+      rerenderScores();
+    });
+    num.addEventListener("blur", (e) => {
+      // Normalize the box after typing (clamps, fills an emptied box)
+      e.target.value = fmtW(
+        _config.weights[key].current ?? _config.weights[key].default ?? 0
+      );
     });
   }
 }
@@ -531,6 +597,11 @@ async function init() {
   _config = data.config;
   _rows = data.rows;
 
+  // Who this scoring run is FOR — page heading + browser tab title.
+  const who = _config.customer_name || "";
+  document.getElementById("page-title").textContent = who ? `People scoring for ${who}` : "People scoring";
+  document.title = who ? `${who} · People Scoring · Sumble` : "People Scoring · Sumble";
+
   // Filters strip
   const fa = _config.filters_applied || {};
   document.getElementById("filters-strip").textContent =
@@ -582,10 +653,13 @@ async function init() {
   document.getElementById("reset-btn").addEventListener("click", () => {
     for (const [key, spec] of Object.entries(_config.weights)) {
       spec.current = spec.default;
-      const input = document.getElementById(`ws-${key}`);
-      const valEl = document.getElementById(`wv-${key}`);
-      if (input) input.value = spec.default;
-      if (valEl) valEl.textContent = `${spec.default}%`;
+      spec.pinned = false;
+      const slider = document.getElementById(`ws-${key}`);
+      const num = document.getElementById(`wn-${key}`);
+      const pin = document.getElementById(`wp-${key}`);
+      if (slider) slider.value = fmtW(spec.default);
+      if (num) num.value = fmtW(spec.default);
+      if (pin) pin.classList.remove("pinned");
     }
     for (const [slug, spec] of Object.entries(_config.job_function_ranges)) {
       for (const which of ["min", "max"]) {
