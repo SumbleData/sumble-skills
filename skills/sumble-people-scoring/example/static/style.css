@@ -361,7 +361,7 @@ td.domain-cell { font-size: 11px; color: var(--fg-dim); }
   position: fixed;
   right: 18px;
   top: calc(var(--topbar-h) + 18px);
-  width: 340px;
+  width: min(600px, calc(100vw - 36px));
   max-height: calc(100vh - var(--topbar-h) - 36px);
   overflow-y: auto;
   background: var(--bg-card);
@@ -382,6 +382,13 @@ td.domain-cell { font-size: 11px; color: var(--fg-dim); }
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  position: sticky;
+  top: -16px;
+  z-index: 3;
+  background: var(--bg-card);
+  margin: -16px -16px 0;
+  padding: 16px 16px 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 .breakdown-header h2 { font-size: 15px; font-weight: 600; line-height: 1.3; }

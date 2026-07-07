@@ -661,12 +661,16 @@ def main() -> None:
                 vals.append(0.0)
         sig["p99"] = compute_p99(vals, sig["transform"])
 
-    # Table identity columns shown in the app: Sumble name + url + headcount only.
+    # Columns shown in the app: identity (name, url) + Employees, then one
+    # contribution column per section ("__section:<key>", which the app renders
+    # as that section's contribution to the Account Score, with a heatmap).
     # CRM identity (crm_account_id / crm_account_name / crm_url) stays in data.csv
     # for the full export but is NOT shown — duplicated CRM records would
     # otherwise surface the same Sumble org multiple times; the app dedups to
     # unique org_id. hq country is intentionally omitted.
-    table_columns = ["name", "url", "employee_count_int"]
+    table_columns = ["name", "url", "employee_count_int"] + [
+        f"__section:{key}" for key in sections
+    ]
 
     company = spec.get("company", {})
     config: dict = {

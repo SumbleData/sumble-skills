@@ -315,6 +315,17 @@ button {
   vertical-align: middle;
 }
 
+.sync-date {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  line-height: 14px;
+  color: var(--muted, #6b7280);
+  white-space: nowrap;
+  cursor: help;
+  vertical-align: middle;
+}
+
 .category-slider-wrap {
   padding: 0 12px 10px;
 }
@@ -462,6 +473,52 @@ button {
   color: var(--fg-dim);
 }
 
+/* --- multipliers --- */
+.multipliers {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.multipliers h3 {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+
+.multiplier-row label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.multiplier-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--penalty);
+  font-size: 12px;
+}
+
+.multiplier-pct.amplify {
+  color: var(--accent-strong, #00A63E);
+}
+
+.multiplier-pct.penalize {
+  color: var(--penalty);
+}
+
+.multiplier-pct.neutral {
+  color: var(--fg-dim);
+}
+
+.multiplier-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--penalty);
+}
+
 /* --- editable weight values --- */
 /* Each section/category/signal % is a number box paired with its slider.
    The wrapping pct span keeps its accent styling; the box inherits it. */
@@ -523,52 +580,6 @@ button {
   cursor: default;
   opacity: 0.22;
   filter: grayscale(1);
-}
-
-/* --- multipliers --- */
-.multipliers {
-  border-top: 1px solid var(--border);
-  margin-top: 16px;
-  padding-top: 14px;
-}
-
-.multipliers h3 {
-  margin: 0 0 10px 0;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-dim);
-  font-weight: 600;
-}
-
-.multiplier-row label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-}
-
-.multiplier-pct {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--penalty);
-  font-size: 12px;
-}
-
-.multiplier-pct.amplify {
-  color: var(--accent-strong, #00A63E);
-}
-
-.multiplier-pct.penalize {
-  color: var(--penalty);
-}
-
-.multiplier-pct.neutral {
-  color: var(--fg-dim);
-}
-
-.multiplier-row input[type="range"] {
-  width: 100%;
-  accent-color: var(--penalty);
 }
 
 /* --- per-tag multipliers --- */
@@ -811,6 +822,12 @@ td.num, th.num {
   font-variant-numeric: tabular-nums;
 }
 
+/* Numeric data columns (Employees, signal columns): centered numbers. */
+td.num-center, th.num-center {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 tbody tr {
   cursor: pointer;
 }
@@ -857,7 +874,7 @@ tbody tr:last-child td {
   position: fixed;
   right: 18px;
   top: 80px;
-  width: 420px;
+  width: min(600px, calc(100vw - 36px));
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   padding: 16px;
@@ -974,7 +991,17 @@ tbody tr:last-child td {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 12px;
+  /* Pin the header (and its × close button) to the top of the scrolling panel
+     so it stays reachable without scrolling back up. Negative margins + matching
+     padding let the opaque background bleed to the panel edges and cover rows
+     scrolling behind it. */
+  position: sticky;
+  top: -16px;
+  z-index: 3;
+  background: var(--bg-card);
+  margin: -16px -16px 12px;
+  padding: 16px 16px 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 .breakdown-header h2 {
@@ -1023,6 +1050,45 @@ tbody tr:last-child td {
   content: " ↗";
   font-size: 10px;
   opacity: 0.7;
+}
+
+/* Breakdown grouping: signals are grouped under their section, sections
+   ordered by total contribution. This row is the section header (label +
+   section subtotal). */
+#breakdown-table tr.breakdown-section-head {
+  cursor: pointer;
+}
+
+#breakdown-table tr.breakdown-section-head td {
+  background: var(--bg, #f8fafc);
+  border-top: 1px solid var(--border-strong, #cbd5e1);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+  color: var(--fg-dim, #64748b);
+  padding-top: 8px;
+  padding-bottom: 4px;
+}
+
+#breakdown-table tr.breakdown-section-head:hover td {
+  color: var(--accent, #16a34a);
+}
+
+/* Collapsed/expanded disclosure triangle on each section header. */
+.bd-disclosure {
+  display: inline-block;
+  width: 10px;
+  margin-right: 6px;
+  color: var(--fg-dim, #64748b);
+  transition: transform 0.12s ease;
+}
+.bd-disclosure::before {
+  content: "▸";
+}
+.breakdown-section-head.expanded .bd-disclosure::before {
+  content: "▾";
 }
 
 /* Breakdown summary footer: base score → boost/penalty lines → final score.

@@ -37,6 +37,9 @@ const state = {
   availableTags: [], // [{tag, count}] universe-wide tag inventory
   expanded: {},      // category_key -> bool
   sectionExpanded: {}, // section_key -> bool (default collapsed)
+  // Breakdown side-panel: which section groups are expanded (default: all
+  // collapsed, so the panel opens as a compact per-section summary).
+  breakdownExpanded: new Set(),
   selectedId: null,
   tab: "accounts",
   // Category values toggled OFF (filtered out). Holds real account
@@ -223,11 +226,12 @@ function signalsByCategory() {
 
 // Adjust `values[key]` to `next`. Redistribute the delta among the
 // other keys, proportional to their current values. Sum stays at total.
+// Returns the actual new value (may be clamped if neighbours can't absorb the delta).
+//
 // Keys for which `isPinned(k)` is true never absorb any of the delta: the
 // moved value is clamped so pinned keys keep their exact share, and only the
 // unpinned others rescale. Directly editing a pinned key is allowed — its own
 // pin only matters when a sibling moves.
-// Returns the actual new value (may be clamped if neighbours can't absorb the delta).
 function redistribute(values, key, next, total = 100, isPinned = () => false) {
   const keys = Object.keys(values);
   if (keys.length <= 1) {
@@ -277,7 +281,7 @@ function redistribute(values, key, next, total = 100, isPinned = () => false) {
   // Round to 0.1 and re-fix to sum (numeric drift)
   for (const k of keys) values[k] = Math.round(values[k] * 10) / 10;
   const sum = keys.reduce((s, k) => s + values[k], 0);
-  if (Math.abs(sum - total) > 0.05 && keys.length > 1) {
+  if (Math.abs(sum - total) > 0.05 && free.length > 0) {
     // Push drift onto the UNPINNED "other" with the largest share, so
     // pinned values stay exactly as set.
     const bestOther = free.reduce((a, b) => (values[a] >= values[b] ? a : b), free[0]);
@@ -329,6 +333,42 @@ function rowBaseScore(row) {
     score += sectionPct * catPct * withinPct * norm;
   }
   return score * 100;
+}
+
+// Per-section contribution to the FINAL score. Each section's slice of the
+// section×category×within×norm sum (×100), then scaled by the same profile
+// adjustment as the score, so the section columns sum to rowScore(row).
+// Keys are section keys (or "__all" when no sections are configured).
+function rowSectionContribs(row) {
+  const out = {};
+  const sec = hasSections();
+  for (const [key, spec] of Object.entries(state.config.signals)) {
+    const cat = spec.category || "first_party";
+    const secKey = sec ? sectionOf(cat) : "__all";
+    const sectionPct = sec ? (state.sectionPct[secKey] || 0) / 100 : 1;
+    const catPct = (state.catPct[cat] || 0) / 100;
+    const withinPct = ((state.withinPct[cat] || {})[key] || 0) / 100;
+    const norm = row[`norm_${key}`] || 0;
+    out[secKey] = (out[secKey] || 0) + sectionPct * catPct * withinPct * norm * 100;
+  }
+  const f = rowAdjustment(row).factor;
+  if (f !== 1) for (const k of Object.keys(out)) out[k] *= f;
+  return out;
+}
+
+// A table column key of the form "__section:<key>" renders a computed
+// per-section contribution instead of a data/signal column.
+const SECTION_COL_PREFIX = "__section:";
+function sectionColKey(col) {
+  return col.startsWith(SECTION_COL_PREFIX) ? col.slice(SECTION_COL_PREFIX.length) : null;
+}
+
+// Conditional-formatting background for a numeric cell: translucent accent
+// green scaled by value / column-max. Empty string = no shading.
+function heatBg(value, max) {
+  if (!(max > 0) || !(value > 0)) return "";
+  const t = Math.max(0, Math.min(1, value / max));
+  return `rgba(0, 166, 62, ${(0.06 + 0.5 * t).toFixed(3)})`;
 }
 
 // The row's multiplicative PROFILE ADJUSTMENT: plain column multipliers (e.g.
@@ -548,6 +588,18 @@ function makeSignalRow(catKey, signal, totalSignalsInCat) {
       "No public Sumble API endpoint exposes this — calibration only, not reproducible by the API-only production scorer.";
     labelChildren.push(
       el("span", { class: "api-badge", title: reason }, "SQL-only"),
+    );
+  }
+  // First-party snapshots carry a sync date — show when the data was last
+  // pulled so stale snapshots are visible at a glance.
+  const syncedAt = spec.source && spec.source.synced_at;
+  if (syncedAt) {
+    const d = new Date(syncedAt);
+    const txt = Number.isNaN(d.getTime())
+      ? String(syncedAt).slice(0, 10)
+      : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    labelChildren.push(
+      el("span", { class: "sync-date", title: `Snapshot last synced ${syncedAt}` }, `synced ${txt}`),
     );
   }
   labelChildren.push(wPct);
@@ -1291,13 +1343,39 @@ function renderTable() {
     for (const col of state.config.table_columns) {
       // The employee column header is sortable and hosts the min/max filter.
       if (col === SIZE_FILTER_COL) tr.appendChild(buildEmployeeHeader());
-      else tr.appendChild(el("th", {}, col));
+      else tr.appendChild(buildColumnHeader(col));
     }
     tr.appendChild(buildScoreHeader());
     thead.appendChild(tr);
     thead.dataset.built = "1";
   }
   updateSortArrows();
+
+  // Columns whose body cells hold bare numbers (Employees + any
+  // signal-backed column + section-contribution columns) get centered
+  // alignment to match their headers.
+  const centerCols = new Set(
+    state.config.table_columns.filter(
+      (c) =>
+        c === SIZE_FILTER_COL ||
+        sectionColKey(c) ||
+        Object.values(state.config.signals).some((s) => s.column === c),
+    ),
+  );
+
+  // Conditional formatting: precompute each section-contribution column's
+  // value per row (cached) + the column max over the FULL filtered set, so the
+  // heatmap is stable across pages. The Account Score column is shaded too.
+  const secCols = state.config.table_columns.map(sectionColKey).filter(Boolean);
+  const contribCache = new Map();
+  const heatMax = {};
+  if (secCols.length) {
+    for (const e of ranked) {
+      const c = rowSectionContribs(e.row);
+      contribCache.set(e.row, c);
+      for (const sk of secCols) heatMax[sk] = Math.max(heatMax[sk] || 0, c[sk] || 0);
+    }
+  }
 
   tbody.innerHTML = "";
   slice.forEach(({ row, score, rank }) => {
@@ -1318,6 +1396,16 @@ function renderTable() {
       );
     }
     state.config.table_columns.forEach((col) => {
+      const secKey = sectionColKey(col);
+      if (secKey) {
+        const c = contribCache.get(row) || rowSectionContribs(row);
+        const v = c[secKey] || 0;
+        const cell = el("td", { class: "num-center heat-cell" }, fmtFloat(v, 1));
+        const bg = heatBg(v, heatMax[secKey]);
+        if (bg) cell.style.backgroundColor = bg;
+        tr.appendChild(cell);
+        return;
+      }
       let val = row[col];
       if ((col === "url" || col === "crm_url") && val) {
         // bare-domain → clickable external link in a new tab
@@ -1331,7 +1419,7 @@ function renderTable() {
       }
       if (typeof val === "number") val = Number.isInteger(val) ? fmtInt(val) : fmtFloat(val);
       else if (val == null) val = "";
-      const cell = el("td", {}, String(val));
+      const cell = el("td", { class: centerCols.has(col) ? "num-center" : null }, String(val));
       tr.appendChild(cell);
     });
     tr.appendChild(el("td", { class: "num score-cell" }, fmtFloat(score, 1)));
@@ -1372,7 +1460,13 @@ function sortedFilteredRanked() {
   const s = state.tableSort;
   if (s) {
     const dir = s.desc ? -1 : 1;
-    const val = (e) => (s.col === "__score" ? e.score : Number(e.row[s.col]) || 0);
+    const secKey = sectionColKey(s.col);
+    const val = (e) =>
+      s.col === "__score"
+        ? e.score
+        : secKey
+          ? rowSectionContribs(e.row)[secKey] || 0
+          : Number(e.row[s.col]) || 0;
     ranked.sort((a, b) => dir * (val(a) - val(b)));
   }
   return ranked;
@@ -1405,12 +1499,40 @@ function updateSortArrows() {
   };
   set("sort-arrow-score", !s || s.col === "__score", s ? s.desc : true);
   set("sort-arrow-emp", !!(s && s.col === SIZE_FILTER_COL), s ? s.desc : true);
+  document.querySelectorAll(".sort-arrow[data-sort-col]").forEach((span) => {
+    const on = !!(s && s.col === span.dataset.sortCol);
+    span.textContent = on ? (s.desc ? " ▼" : " ▲") : "";
+  });
+}
+
+// Generic table-column header. A column that backs a scoring signal (its
+// name matches a signal's `column`) gets the signal's label and a numeric
+// sort toggle; identity columns (name, url, …) stay plain text.
+function buildColumnHeader(col) {
+  const secKey = sectionColKey(col);
+  if (secKey) {
+    const label = (state.config.sections || {})[secKey]?.label || secKey;
+    return el(
+      "th",
+      { class: "num-center sortable", onclick: () => toggleSort(col) },
+      label,
+      el("span", { class: "sort-arrow", "data-sort-col": col }),
+    );
+  }
+  const spec = Object.values(state.config.signals).find((s) => s.column === col);
+  if (!spec) return el("th", {}, col);
+  return el(
+    "th",
+    { class: "num-center sortable", onclick: () => toggleSort(col) },
+    spec.label,
+    el("span", { class: "sort-arrow", "data-sort-col": col }),
+  );
 }
 
 // Employees header: sortable label + the min/max size filter, which lives
 // IN the column header (not the toolbar).
 function buildEmployeeHeader() {
-  const th = el("th", { class: "num sortable th-emp" });
+  const th = el("th", { class: "num-center sortable th-emp" });
   th.appendChild(
     el(
       "span",
@@ -1474,14 +1596,23 @@ function downloadFilteredCsv() {
   const slugCol = state.config.slug_column;
   const cols = ["rank"];
   if (state.config.has_categories) cols.push("account_category");
-  cols.push(...state.config.table_columns, "score");
+  // Section-contribution columns export under their section label.
+  const colLabel = (c) => {
+    const sk = sectionColKey(c);
+    return sk ? (state.config.sections || {})[sk]?.label || sk : c;
+  };
+  cols.push(...state.config.table_columns.map(colLabel), "score");
   if (state.wsPresent) cols.push("ws_fit", "ws_fit_reason");
   cols.push("sumble_url");
   const lines = [cols.map(csvCell).join(",")];
   for (const { row, score, rank } of ranked) {
     const vals = [rank];
     if (state.config.has_categories) vals.push(rowCategory(row));
-    for (const c of state.config.table_columns) vals.push(row[c]);
+    const contribs = rowSectionContribs(row);
+    for (const c of state.config.table_columns) {
+      const sk = sectionColKey(c);
+      vals.push(sk ? (contribs[sk] || 0).toFixed(2) : row[c]);
+    }
     vals.push(score.toFixed(2));
     if (state.wsPresent) vals.push(wsFitValue(row), row.ws_fit_reason || "");
     vals.push(row.sumble_url || (slugCol && row[slugCol] ? base + row[slugCol] : ""));
@@ -1571,7 +1702,8 @@ function updateBreakdown() {
   const sumbleBase = state.config.sumble_url_base || "https://sumble.com/orgs/";
   for (const [key, spec] of Object.entries(state.config.signals)) {
     const cat = spec.category || "first_party";
-    const sectionPct = sec ? (state.sectionPct[sectionOf(cat)] || 0) : 100;
+    const secKey = sec ? sectionOf(cat) || "" : "__all";
+    const sectionPct = sec ? (state.sectionPct[secKey] || 0) : 100;
     const catPct = state.catPct[cat] || 0;
     const withinPct = (state.withinPct[cat] || {})[key] || 0;
     // section% × cat% × within% / 10000, scaled to 0-100 absolute.
@@ -1586,6 +1718,8 @@ function updateBreakdown() {
       row[`${spec.column}_link`] || buildSumbleLink(sumbleBase, slug, spec.sumble_link);
     items.push({
       label: spec.label,
+      section: secKey,
+      sectionLabel: sec ? (state.config.sections || {})[secKey]?.label || "Other" : "",
       unit: spec.unit || "",
       raw,
       rawFmt: fmtRaw(raw, spec.fmt) + (spec.unit ? " " + spec.unit : ""),
@@ -1594,12 +1728,12 @@ function updateBreakdown() {
       href,
     });
   }
-  items.sort((a, b) => b.contrib - a.contrib);
   const maxContrib = Math.max(...items.map((i) => i.contrib), 0.01);
 
   const tbody = document.querySelector("#breakdown-table tbody");
   tbody.innerHTML = "";
-  for (const it of items) {
+
+  const appendItemRow = (it) => {
     const barWidth = Math.max(2, (it.contrib / maxContrib) * 80);
     const labelCell = it.href
       ? el(
@@ -1607,12 +1741,7 @@ function updateBreakdown() {
           {},
           el(
             "a",
-            {
-              href: it.href,
-              target: "_blank",
-              rel: "noopener",
-              class: "breakdown-link",
-            },
+            { href: it.href, target: "_blank", rel: "noopener", class: "breakdown-link" },
             it.label,
           ),
         )
@@ -1636,6 +1765,50 @@ function updateBreakdown() {
         ),
       ),
     );
+  };
+
+  // Group signals under their section, order sections by total contribution
+  // (desc) and signals within each section by contribution (desc). Falls back
+  // to a flat contribution-sorted list when no sections are configured.
+  if (sec) {
+    const groups = new Map();
+    for (const it of items) {
+      const g = groups.get(it.section) || {
+        key: it.section,
+        label: it.sectionLabel,
+        total: 0,
+        items: [],
+      };
+      g.total += it.contrib;
+      g.items.push(it);
+      groups.set(it.section, g);
+    }
+    const ordered = [...groups.values()].sort((a, b) => b.total - a.total);
+    for (const g of ordered) {
+      const open = state.breakdownExpanded.has(g.key);
+      tbody.appendChild(
+        el(
+          "tr",
+          {
+            class: "breakdown-section-head" + (open ? " expanded" : ""),
+            onclick: () => {
+              if (open) state.breakdownExpanded.delete(g.key);
+              else state.breakdownExpanded.add(g.key);
+              updateBreakdown();
+            },
+          },
+          el("td", { colspan: "3" }, el("span", { class: "bd-disclosure" }), g.label),
+          el("td", { class: "num" }, fmtFloat(g.total, 2)),
+        ),
+      );
+      if (open) {
+        g.items.sort((a, b) => b.contrib - a.contrib);
+        for (const it of g.items) appendItemRow(it);
+      }
+    }
+  } else {
+    items.sort((a, b) => b.contrib - a.contrib);
+    for (const it of items) appendItemRow(it);
   }
 
   // Summary footer: base score → each applied boost/penalty as its own line
