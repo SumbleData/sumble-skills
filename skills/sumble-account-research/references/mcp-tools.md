@@ -12,7 +12,8 @@ not a placeholder.
 | Tool | Purpose | Cost |
 |---|---|---|
 | `FindMatchAndEnrichOrganizations` | Find/match/enrich orgs — query filters or resolve names/URLs/IDs; request only needed attrs + tech/team/people/job metrics. | 1 cr/org + 1/paid attr + entity-metric costs |
-| `GetOrganizationSignals` | Recent sales triggers for one org `id` — champion/leadership moves, new hires on tracked tech, hiring/tech-adoption trends; each with `priority`, `date`, `sales_angle`, `sumble_url` (+ `person_id`/`job_post_id` to drill in). Optional `technology_slugs` filter. The "why now". | 1 cr/signal returned (free when none) |
+| `SearchSignals` | Search signals **across many accounts at once** — filters (AND-combined): `account_list_ids`, `organization_ids`, `person_ids`, `technology_slugs`, `job_functions`, `priorities`. Same signal payload as below; job-post signals add `suggested_contacts` (relevance-scored 1–10). Use for territory sweeps (Step 4) and per-person checks. | 1 cr/signal returned (free when none) |
+| `GetOrganizationSignals` | Recent sales triggers for one org `id` — champion/leadership moves, new hires on tracked tech, hiring/tech-adoption trends; each with `priority`, `date`, `sales_angle`, `sumble_url` (+ `person_id`/`job_post_id` to drill in). Optional `technology_slugs` filter. The "why now" when you already have one org id. | 1 cr/signal returned (free when none) |
 | `GetIntelligenceBrief` | LLM sales brief for one narrowed account. | **50 cr** |
 | `FindMatchAndEnrichJobs` | Find/enrich jobs — filters (incl. org-list scoping) or `job_id`s. `description` paid; optional `related_people`. | 1 cr/job + 1/paid attr (title free) + 1/related person |
 | `FindMatchAndEnrichPeople` | Find/match/enrich people — resolve IDs/LinkedIn/email or search orgs. Optional `related_people`, `email`/`phone` reveals. | 1 cr/person + 1/paid attr (name free) + 1/related; **email 10 cr, phone 80 cr** (first reveal; free on repeat/unavailable) |
@@ -41,7 +42,7 @@ with job filters; full state names; `job_title`/`job_description` aren't filtera
 `customer-data-platform`, `feature-flagging-and-a-b-testing`, `vector-database`,
 `oss-data-science`, `commercial-data-science`, `infrastructure-as-code-tools`,
 `design`, `javascript`, `siem`, `edr`, `headless-cms`, `ccaas`, `endpoint-management`,
-`ecommerce-platform`, `vibe-coding`, `marketing-automation-platforms`,
+`ecommerce-platform`, `vibe-coding`, `coding-agents`, `marketing-automation-platforms`,
 `frontier-ai-models`, `processing-units-and-chips`,
 `cloud-and-container-orchestration-platforms`, `identity-and-access-management`.
 
@@ -54,7 +55,8 @@ on the strongest only; email for top 2–3, phone (80 cr) for one and confirm;
 → `ListOrganizationLists`/`GetOrganizationList` (or resolve pasted names) → one
 `FindMatchAndEnrichJobs` pass scoped to the list `AND (project IN (...) OR
 technology_category IN (...)) AND hiring_period EQ '3mo'` → tier A (hiring on key
-projects/categories) / B (weaker) / C (none) → then run `GetOrganizationSignals`
-across the candidate pool (**not just tier A** — a fresh high-`priority` signal
-promotes a low-fit account; free for orgs with no signals) → user picks the top.
+projects/categories) / B (weaker) / C (none) → then one `SearchSignals` sweep with
+`account_list_ids` over the whole list (**not just tier A** — a fresh high-`priority`
+signal promotes a low-fit account; free when nothing matches; add a `priorities`
+filter on a huge list) → user picks the top.
 ~300 cr per 100 accounts for the jobs pass, plus 1 cr per signal surfaced.
