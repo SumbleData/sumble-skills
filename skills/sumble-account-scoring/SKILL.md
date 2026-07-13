@@ -19,7 +19,7 @@ sample.** By default we score everything they hand us: an account list of
 < 100,000 is scored whole (the recommended default — credits are rarely the
 binding constraint, and one full pass makes the app and calibration complete).
 Only when the list is very large (≥ 100,000) do we ask whether to spend the
-credits to score it all or to score a representative subset/sample (Q4.1) — the
+credits to score it all or to score a representative subset/sample (Q5.1) — the
 tradeoff is theirs, surfaced with the credit cost. Whitespace is ranked for free
 and only the chosen pool is enriched. For a one-off score of an even larger book
 later (or daily refresh), hand `account-scoring-weights.json` to
@@ -34,7 +34,7 @@ Trigger on `/sumble-account-scoring`, or on any of: "score my accounts",
 "build an account score", "find whitespace accounts", "rank net-new accounts
 I'm not selling to", "who looks like our ICP but isn't in our CRM?", or "score
 my CRM and find whitespace". This is the **single, consolidated** skill for
-account scoring AND whitespace — Stage 1 Q4 asks the objective (score /
+account scoring AND whitespace — Stage 1 Q5 asks the objective (score /
 whitespace / both) and the rest of the run adapts.
 
 ## Required tools
@@ -294,7 +294,7 @@ complementary across key+other; personas key+other; projects key only).
 
 **Funding columns** (only when `spec.include_funding` is true — **OFF by
 default and never suggested**: funding only covers venture-backed companies,
-so scoring it artificially boosts them; see the Stage 1 Q2 note. Enable only
+so scoring it artificially boosts them; see the Stage 1 Q4 note. Enable only
 on explicit user request, with the coverage-skew warning) — pulled
 from the `/v6/organizations` funding attributes (1 credit each per matched
 org). Three scoring signals (all `api_supported:true`, reproduced by
@@ -375,11 +375,11 @@ Execute these stages in order. Surface progress between stages.
 
 Goal: collect the input required to produce a first version of the score. Please follow these interview questions very closely and do not go off script. I want a deterministic interview that is the same between different runs of this skill.
 
-**Numbering rule:** the interview has **4 main questions**. Start every
-interview message with a progress marker — `**Question N of 4**` (sub-steps
-as `Question 4 of 4 — part 4.1`, etc.) — so the user always knows where they
+**Numbering rule:** the interview has **5 main questions**. Start every
+interview message with a progress marker — `**Question N of 5**` (sub-steps
+as `Question 5 of 5 — part 5.1`, etc.) — so the user always knows where they
 are and how much interview remains. When you combine questions into one
-message, label it with the range (e.g. `**Questions 2–4 of 4**`).
+message, label it with the range (e.g. `**Questions 2–5 of 5**`).
 
 **Confirmation rule (applies to EVERY confirm step in this interview):** when
 you ask the user to confirm something — the ICP, the segments, the
@@ -393,39 +393,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
 
 1. Please ask the company's name and their URL. You can prefill if you know it and ask the user to confirm. Also ask them where they want the account scoring to be stored. Can default to ./tmp/account_scoring/<company> directory. 
 
-2. **Segments (the score's top-level breakdown).** The score is a weighted
-   blend of **segments** (the config's `sections`). The default is three
-   orthogonal segments — **don't re-derive them, just propose them and let the
-   user adjust**:
-   - **Size (50%)** — how big is the opportunity: persona headcount, tech
-     team counts, recent project×tech / project×persona job posts.
-   - **Growth & momentum (30%)** — is now the time: persona YoY growth.
-   - **Concentration (20%)** — how strong / focused the fit: persona
-     concentration (% of company) and tech-team concentration (% of teams).
-
-   **Do NOT suggest funding attributes.** Funding data only exists for
-   venture-backed companies — everyone else reads 0 — so scoring it
-   artificially boosts startups (the partial-coverage principle in
-   `articles/01`); what funding indicates shows up in growth attributes
-   anyway. Include funding ONLY if the user explicitly asks for it, and when
-   they do, warn them about the coverage skew (it can be reasonable when
-   their universe is overwhelmingly venture-backed).
-   
-   Present these three with their blend and one yes/edit prompt. The user can
-   **rename, reweight, drop, or add segments**, and may **repeat a signal in
-   more than one segment** (e.g. project×tech under both Size and Concentration).
-   For inspiration, offer a **business-segment breakdown** when the company
-   sells distinct product lines — e.g. for Oracle a segment scoring OCI fit and
-   a separate segment scoring Apps fit, each with its own techs/personas. Weave
-   any 1P signals (Q4.3) into an existing segment or a new one.
-
-   Encode the user's choices in `spec.section_plan` (schema in
-   `template/_build/README.md`): `{sections:[{key,label,default_pct}],
-   category_section:{<category>:<segment>}, category_meta:{...}}`. Omit
-   `section_plan` to take the three defaults verbatim. Don't write any
-   objective field. (The buying-window confirmation still happens in Q3.)
-
-3. Confirm the ICP. Call `GetMyCompanyProfile` for the URL and propose
+2. Confirm the ICP. Call `GetMyCompanyProfile` for the URL and propose
    personas + technologies (+ projects), showing both `key` and `other`
    tiers. (If the lookup fails, propose with an LLM and snap to slugs via
    `SearchTechnologies` / `RunSqlQuery` on `job_functions`/`projects`.)
@@ -471,7 +439,66 @@ the last time it was shown, re-print the whole updated list, not a diff.
    - **Job functions**: both `tier: key` AND `other`.
    If no project genuinely signals intent, skip this sub-step.
 
-4. **Objective — score, whitespace, or both? Ask this FIRST; it drives the
+3. **Internal (1P) data — what can they bring? (optional, any mode).** Ask ONE
+   question: beyond Sumble's data, is there internal data they'd like folded
+   into the score? Give concrete examples so the user recognizes what
+   qualifies:
+   - **Product / PLG adoption** — self-serve signups, free-tier teams, active
+     seats/workspaces at an account.
+   - **Marketing engagement** — attended events or webinars, campaign
+     responses.
+   - **Website activity** — visited the website / pricing page (de-anonymized
+     visits).
+   - Anything else joinable by account (name/domain): meeting activity,
+     third-party intent, support tickets, …
+   Each source becomes one `{slug}_{measure}` column + one signal (null when
+   missing), grouped into categories (e.g. "Product usage", "Marketing
+   engagement", "Third-party intent"). Inspect the session's MCPs and surface
+   relevant ones by name as candidate sources; else ask for a CSV path. At
+   this point only capture WHAT to include and WHERE it lives — the
+   source-confirmation flow + sample reads run later with the other pulls
+   (Q5 / Stage 2b). The answer feeds Q4: each 1P category is woven into an
+   existing segment or gets a segment of its own.
+
+4. **Segments (the score's top-level breakdown).** The score is a weighted
+   blend of **segments** (the config's `sections`). The default is three
+   orthogonal segments — **don't re-derive them, just propose them and let the
+   user adjust**:
+   - **Size (50%)** — how big is the opportunity: persona headcount, tech
+     team counts, recent project×tech / project×persona job posts.
+   - **Growth & momentum (30%)** — is now the time: persona YoY growth.
+   - **Concentration (20%)** — how strong / focused the fit: persona
+     concentration (% of company) and tech-team concentration (% of teams).
+
+   These three are the default. **If Q3 surfaced 1P data, propose where it
+   lands in the SAME message** — woven into an existing segment or, when the
+   data is substantial (e.g. product usage), as an ADDITIONAL segment (e.g.
+   **Product usage**, **Marketing engagement**) with a starting weight carved
+   out of the blend; present the adjusted blend as the proposal, not as an
+   afterthought.
+
+   **Do NOT suggest funding attributes.** Funding data only exists for
+   venture-backed companies — everyone else reads 0 — so scoring it
+   artificially boosts startups (the partial-coverage principle in
+   `articles/01`); what funding indicates shows up in growth attributes
+   anyway. Include funding ONLY if the user explicitly asks for it, and when
+   they do, warn them about the coverage skew (it can be reasonable when
+   their universe is overwhelmingly venture-backed).
+
+   Present the proposed blend with one yes/edit prompt. The user can
+   **rename, reweight, drop, or add segments**, and may **repeat a signal in
+   more than one segment** (e.g. project×tech under both Size and Concentration).
+   For inspiration, offer a **business-segment breakdown** when the company
+   sells distinct product lines — e.g. for Oracle a segment scoring OCI fit and
+   a separate segment scoring Apps fit, each with its own techs/personas.
+
+   Encode the user's choices in `spec.section_plan` (schema in
+   `template/_build/README.md`): `{sections:[{key,label,default_pct}],
+   category_section:{<category>:<segment>}, category_meta:{...}}`. Omit
+   `section_plan` to take the three defaults verbatim. Don't write any
+   objective field. (The buying-window confirmation still happens in Q2.)
+
+5. **Objective — score, whitespace, or both? Ask this FIRST; it drives the
    rest.** Record as `spec.mode`:
    - **(A) Score CRM accounts** (`score`) — rank the accounts already in their
      CRM.
@@ -550,9 +577,9 @@ the last time it was shown, re-print the whole updated list, not a diff.
    join keys (name, URL/domain) before the full pull. **Don't ask about
    IT-services / Professional-services penalties separately** — those are
    tags handled by the same lift calibration as the other attributes
-   (Step 4a).
+   (Step 5a).
 
-   **4.1 — How big is the scored CRM universe? (modes A/C only.)** We score the
+   **5.1 — How big is the scored CRM universe? (modes A/C only.)** We score the
    set the user chooses here; a larger book can be scored later by
    `score_accounts.py`.
    - **< 100,000 accounts → score them all** (the recommended default; the
@@ -573,7 +600,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
    Σ entity-metrics)`/org). Tell the user the full CRM gets scored later by
    `score_accounts.py` — no bulk MCP run.
 
-   **4.2 — Whitespace pool size (modes B/C).** Ask **how many** net-new
+   **5.2 — Whitespace pool size (modes B/C).** Ask **how many** net-new
    candidates to rank — **recommend 10,000** (default). Surface the credit cost
    first: candidate *ranking* is FREE (id/name/url selects cost no credits); only
    the final pool is enriched, so cost ≈ `pool × (1 + paid-attrs + Σ
@@ -641,7 +668,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
      (e.g. `["Defense & Space", "Mining & Metals"]`); `merge_data.py` drops those
      rows. NOTE: the endpoint can't filter industries in the rank query, so
      excluded-industry orgs are enriched then dropped (a small credit cost) —
-     alternatively, lean on the **auto-applied industry penalties** (Step 4a) to
+     alternatively, lean on the **auto-applied industry penalties** (Step 5a) to
      sink them instead of excluding, and tell the user which you chose.
      `professional_services` is a native org TAG, so the preferred way to
      exclude it is via `hard_exclude_tags` (free, rank-time); the legacy
@@ -654,12 +681,12 @@ the last time it was shown, re-print the whole updated list, not a diff.
    stratum composition), no enrichment. Eyeball it, adjust the ICP / filters,
    then run the real fetch.
 
-   **4.3 — Other 1P signals to fold in (optional, any mode).** product/PLG usage,
-   marketing engagement, meeting activity, third-party intent (one
-   `{slug}_{measure}` column each). Run the same source-confirmation flow
-   per source before reading.
+   **5.3 — Confirm the 1P sources from Q3 (only if any).** For each internal
+   source the user named in Q3 (product/PLG usage, marketing engagement,
+   website activity, …), run the same source-confirmation flow per source
+   before reading (one `{slug}_{measure}` column each).
 
-   The closed-won set (c) drives Step 4(a) tag-lift calibration —
+   The closed-won set (c) drives Step 5(a) tag-lift calibration —
    boost/penalty defaults for the six org-tag attributes (`b2b`, `b2c`,
    `digital_native`, `is_ai_native`, `it_services`, `professional_services`).
    Calibration is purely over the org's Sumble tags (`professional_services`
@@ -673,7 +700,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
    The gold set is often small, so don't rely on it alone. Combine the
    `_calibration_audit.json` lifts with what you can learn about the company from
    the **MCP servers + the wider world**:
-   - `GetMyCompanyProfile` (already pulled in Q3) and Sumble `GetCompanyProfile`
+   - `GetMyCompanyProfile` (already pulled in Q2) and Sumble `GetCompanyProfile`
      — what the company sells and to whom.
    - the company's **website / URL** and **`parallel-search` web_search** — research
      their actual customers, target verticals, and obvious non-buyers.
@@ -694,10 +721,10 @@ the last time it was shown, re-print the whole updated list, not a diff.
    it's a native org tag, calibrated and excludable like any other tag.
 
    **Whitespace hard-exclude recommendations (modes B/C).** Suggest excludes
-   **per company, never a fixed list** — see Q4.2's "Universe filters" for the
+   **per company, never a fixed list** — see Q5.2's "Universe filters" for the
    full mechanics. In short: org-type tags (`org_type_*`, `it_services`) go in
    `hard_exclude_tags` (cheap, rank-time) — and **always ask the PE-firm
-   question** (`is_private_equity_firm`, see Q4.2) — while **industries are
+   question** (`is_private_equity_firm`, see Q5.2) — while **industries are
    DERIVED** from
    the gold-lift audit (zero/near-zero-customer industries) + world/MCP knowledge
    of the company and written to `universe_filters.exclude_industries` (display
@@ -748,10 +775,10 @@ the names. The only remaining `RunSqlQuery` is the tech-category roll-up below.
 
 ##### Roll individual techs up into predefined categories
 
-**This procedure is invoked during Q3 (ICP confirmation), before the user
-confirms — see Stage 1 Q3. It lives here for the mechanics; by Stage 2a the
+**This procedure is invoked during Q2 (ICP confirmation), before the user
+confirms — see Stage 1 Q2. It lives here for the mechanics; by Stage 2a the
 roll-up is already confirmed and you only persist it to `spec.json`. Re-run it
-here only if the ICP techs changed after Q3.**
+here only if the ICP techs changed after Q2.**
 
 Before finalizing the tech list, check whether groups of the ICP techs are
 better expressed as a single **predefined Sumble technology category** (one
@@ -766,7 +793,7 @@ technology in that predefined Sumble category — including techs that were neve
 in the ICP. This is the tradeoff `icp_coverage_pct` quantifies (below): it is
 the share of the category's signal that comes from the ICP techs, so
 `100% − coverage` is how much extra, non-ICP breadth you take on by rolling up.
-Make this explicit to the user at Q3 confirmation, and prefer individual techs
+Make this explicit to the user at Q2 confirmation, and prefer individual techs
 when coverage is low (the category would mostly measure things outside the ICP).
 
 Run ONE `RunSqlQuery` with the resolved ICP tech slugs filled into `icp`:
@@ -799,7 +826,7 @@ broader than the ICP, so prefer the individual techs. Apply the rules:
 - **Suggest a category** (replace its absorbed individual techs with one
   `{"slug": <cat>, "kind": "category"}` entry) only when it absorbs **≥2** ICP
   techs. Keep unabsorbed techs as individual `{"slug": …}` entries.
-- Present the proposed rollups as part of the Q3 ICP confirmation (category,
+- Present the proposed rollups as part of the Q2 ICP confirmation (category,
   coverage%, the techs it absorbs) and loop on the user's edits — the user
   confirms categories, not the raw pre-rollup techs.
 
@@ -821,7 +848,7 @@ needs. `sample.csv` is the **scored** sample; `crm.csv` is the exclusion list.
 - **`_raw/sample.csv`** (`crm_account_id,name,domain,is_gold,is_owned`) — the
   scored sample. `merge_data.py` derives `account_category` from
   `is_gold`/`is_owned` (customer > allocated > unallocated).
-  - **Score / Both (A/C):** the scored CRM set sized + composed per Q4.1
+  - **Score / Both (A/C):** the scored CRM set sized + composed per Q5.1
     (everything if ≤5K; otherwise the user's choice — all / allocated / subset /
     stratified sample). `is_gold=1` closed-won, `is_owned=1` rep-allocated.
   - **Whitespace-only (B):** just the closed-won customers (`is_gold=1`), for

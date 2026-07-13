@@ -24,8 +24,7 @@ A score earns its place when a rep can read it, trust it, and act on it. A good 
 
 Done well, an account score ends up underneath a surprising number of go-to-market decisions:
 
-- **Account allocation**: check that your best accounts are assigned to a rep instead of sitting unowned in the CRM.
-- **Territory planning**: carve balanced books from a ranked, scored universe instead of by gut or geography alone.
+- **Account allocation & territory planning**: assign every account to a rep and carve balanced territories from a ranked, scored universe — not by gut or geography alone.
 - **Rep guidance**: tell each rep which of their accounts show the most promise right now, and why.
 - **Whitespace**: point the same model at the accounts you don't have to find the net-new ones worth pursuing.
 - **Account-based marketing**: focus ABM spend and air cover on the accounts the model says matter.
