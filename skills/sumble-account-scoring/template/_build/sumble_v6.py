@@ -179,10 +179,6 @@ def intent_tech_query(project_slug: str, techs: list[dict]) -> str:
     return f"project EQ {_q(project_slug)} AND {tech_clause(techs)}"
 
 
-def intent_persona_query(project_slug: str, persona_names: list[str]) -> str:
-    return f"project EQ {_q(project_slug)} AND job_function IN {_in_list(persona_names)}"
-
-
 def entity_plan(spec: dict, since: str | None = None) -> list[dict[str, Any]]:
     """Map each Sumble-sourced signal column to exactly one entity selection.
 
@@ -200,7 +196,6 @@ def entity_plan(spec: dict, since: str | None = None) -> list[dict[str, Any]]:
     personas = spec["personas"]
     techs = spec["techs"]
     projects = spec.get("projects") or []
-    persona_names = [p["name"] for p in personas]
 
     plan: list[dict[str, Any]] = []
     for p in personas:
@@ -244,16 +239,6 @@ def entity_plan(spec: dict, since: str | None = None) -> list[dict[str, Any]]:
                     "col": f"{proj['slug']}_x_relevant_tech_jobposts",
                     "type": "advanced_query",
                     "term": intent_tech_query(proj["slug"], techs),
-                    "metric": "job_post_count",
-                    "scale": 1.0,
-                    "since": since,
-                }
-            )
-            plan.append(
-                {
-                    "col": f"{proj['slug']}_x_relevant_persona_jobposts",
-                    "type": "advanced_query",
-                    "term": intent_persona_query(proj["slug"], persona_names),
                     "metric": "job_post_count",
                     "scale": 1.0,
                     "since": since,

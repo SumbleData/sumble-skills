@@ -286,11 +286,11 @@ slugs):
   tech team concentration `{tech}_team_pct` = `100 * {tech}_teams /
   NULLIF(organizations.teams_count, 0)` (0–100).
 
-**Buying-window columns** (always present) — two per key project:
-`{project}_x_relevant_tech_jobposts`
-and `{project}_x_relevant_persona_jobposts` (Template C5). The relevant
-sets follow the Stage 1 eligibility rules (tech = competitors +
-complementary across key+other; personas key+other; projects key only).
+**Buying-window columns** (always present) — one per key project:
+`{project}_x_relevant_tech_jobposts` (Template C5). The relevant tech set
+follows the Stage 1 eligibility rules (tech = competitors + complementary
+across key+other; projects key only). Project × persona is intentionally
+NOT produced.
 
 **Funding columns** (only when `spec.include_funding` is true — **OFF by
 default and never suggested**: funding only covers venture-backed companies,
@@ -430,13 +430,13 @@ the last time it was shown, re-print the whole updated list, not a diff.
    ```
 
    **Also confirm the buying-window combinations**
-   — does each KEY project × the relevant set signal intent-to-buy-now?
-   Show them as `project AND (tech₁ OR tech₂ …)` and `project AND
-   (persona₁ OR …)`. Eligibility for the relevant sets:
+   — does each KEY project × the relevant tech set signal intent-to-buy-now?
+   Show them as `project AND (tech₁ OR tech₂ …)`. Eligibility for the
+   relevant set:
    - **Projects**: `tier: key` only (the trigger).
    - **Technologies**: modern + legacy competitors + complementary,
      across `tier: key` AND `other`.
-   - **Job functions**: both `tier: key` AND `other`.
+   (Project × persona is intentionally NOT produced — only project × tech.)
    If no project genuinely signals intent, skip this sub-step.
 
 3. **Internal (1P) data — what can they bring? (optional, any mode).** Ask ONE
@@ -465,7 +465,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
    orthogonal segments — **don't re-derive them, just propose them and let the
    user adjust**:
    - **Size (50%)** — how big is the opportunity: persona headcount, tech
-     team counts, recent project×tech / project×persona job posts.
+     team counts, recent project×tech job posts.
    - **Growth & momentum (30%)** — is now the time: persona YoY growth.
    - **Concentration (20%)** — how strong / focused the fit: persona
      concentration (% of company) and tech-team concentration (% of teams).
@@ -880,8 +880,10 @@ python3 <skill_dir>/template/_build/fetch_data.py --raw <output_root>/_raw --mod
 python3 <skill_dir>/template/_build/merge_data.py --raw <output_root>/_raw
 ```
 
-`fetch_data.py` POSTs to `/v6/organizations` in ≤250-org batches (or paginated
-`filter` pages), saving `_raw/responses/resp_*.json` and a per-org
+`fetch_data.py` POSTs to `/v6/organizations` in ≤100-org batches (or paginated
+`filter` pages) — any batch that still 500s or truncates after retries is
+adaptively halved (down to a 20-org floor) so one bad batch can't sink the run —
+saving `_raw/responses/resp_*.json` and a per-org
 `_raw/fetch_index.json` carrying `account_category`; with `--whitespace` it also
 resolves `crm.csv` → `crm_matches.json` and appends enriched whitespace
 candidates. `merge_data.py` parses them into `data.csv` (`account_category` +
@@ -892,7 +894,7 @@ live in the scripts.
 **Credit cost** ≈ `(1 + paid-attributes + Σ entity-metrics)` per matched org
 (~16 for a typical ICP). Surface the estimate before running a large sample.
 
-**Timing** — enrichment runs as blocking ≤250-org POST batches, so wall-clock
+**Timing** — enrichment runs as blocking ≤100-org POST batches, so wall-clock
 scales with the org count. Budget a **broad ~1–2 minutes per 1,000 enriched
 orgs** (a typical CRM + 10k-whitespace pull is ~10–20 minutes). **Give the user
 this rough time estimate alongside the credit estimate before any bulk

@@ -51,9 +51,13 @@ from pathlib import Path
 import sumble_v6
 
 # list mode: the endpoint accepts up to 1000 orgs/call, but a rich ICP (many
-# techs/personas → 50+ entity selections per org) makes a 1000-org payload heavy
-# enough to 500. 250 keeps payloads safe; credits are unchanged (cost is per org).
-BATCH = 250
+# techs/personas → 50+ entity selections per org) makes a big payload heavy
+# enough to 500 or to truncate mid-response (IncompleteRead). 100 keeps the
+# per-batch response small (~400 KB) and reliable; credits are unchanged (cost
+# is per org). `_fetch_orgs` adaptively halves any batch that still fails, so a
+# pathologically large single org can't sink the run.
+BATCH = 100
+MIN_BATCH = 20  # adaptive-split floor: below this, a persistent failure is fatal
 PAGE = 200  # filter mode: endpoint max limit per page
 RANK_PAGE_CAP = 40  # base cap on filter pages scanned per stratum (scaled to quota)
 
@@ -90,7 +94,7 @@ def load_api_key(env_file: str | None) -> str:
     return key
 
 
-def post(api_key: str, body: dict, *, retries: int = 4, fatal: bool = True) -> dict | None:
+def post(api_key: str, body: dict, *, retries: int = 6, fatal: bool = True) -> dict | None:
     data = json.dumps(body).encode("utf-8")
     for attempt in range(retries):
         req = urllib.request.Request(sumble_v6.API_URL, data=data, method="POST")
@@ -135,6 +139,26 @@ def _clear_responses(raw: Path) -> Path:
     return resp_dir
 
 
+def _fetch_orgs(api_key: str, orgs: list[dict], select: dict) -> list[dict]:
+    """POST one batch of orgs; if it still fails after post()'s retries (500 or a
+    truncated/IncompleteRead response), halve the batch and retry each half —
+    recursively, down to MIN_BATCH — so an oversized response degrades gracefully
+    instead of aborting the whole run. Returns the response(s) in org order (one
+    normally; more when a split happened). Credits are per matched org, so a split
+    costs the same."""
+    resp = post(api_key, {"organizations": orgs, "select": select}, fatal=False)
+    if resp is not None:
+        return [resp]
+    if len(orgs) <= MIN_BATCH:
+        sys.exit(
+            f"[fetch] a {len(orgs)}-org batch failed after retries and splitting to "
+            f"the {MIN_BATCH}-org floor — likely a real outage; re-run to resume."
+        )
+    mid = len(orgs) // 2
+    print(f"[fetch] batch of {len(orgs)} failed; splitting -> {mid}+{len(orgs) - mid}")
+    return _fetch_orgs(api_key, orgs[:mid], select) + _fetch_orgs(api_key, orgs[mid:], select)
+
+
 def run_list(
     sample: list[dict],
     select: dict,
@@ -153,12 +177,10 @@ def run_list(
             {"name": r.get("name") or "", "url": r.get("domain") or r.get("url") or ""}
             for r in chunk
         ]
-        body = {"organizations": orgs, "select": select}
-        resp = post(api_key, body)
-        assert resp is not None  # fatal=True never returns None
-        (resp_dir / f"resp_{batch_idx:03d}.json").write_text(json.dumps(resp))
-        batch_idx += 1
-        matched_total += resp.get("matched_count") or 0
+        for resp in _fetch_orgs(api_key, orgs, select):
+            (resp_dir / f"resp_{batch_idx:03d}.json").write_text(json.dumps(resp))
+            batch_idx += 1
+            matched_total += resp.get("matched_count") or 0
         for r in chunk:
             is_gold = _truthy(r.get("is_gold"))
             is_owned = _truthy(r.get("is_owned"))
@@ -172,8 +194,8 @@ def run_list(
                 }
             )
         print(
-            f"[fetch] batch {batch_idx}: {len(chunk)} sent, "
-            f"matched={resp.get('matched_count')} credits={resp.get('credits_used')}"
+            f"[fetch] orgs {bi + 1}-{bi + len(chunk)} of {len(sample)} done "
+            f"(matched so far {matched_total})"
         )
     print(f"[fetch] list done: {len(sample)} orgs, {matched_total} matched.")
     return batch_idx
@@ -466,10 +488,9 @@ def enrich_whitespace(
     for bi in range(0, len(candidates), BATCH):
         chunk = candidates[bi : bi + BATCH]
         orgs = [{"name": c["name"], "url": c["url"]} for c in chunk]
-        resp = post(api_key, {"organizations": orgs, "select": select})
-        assert resp is not None  # fatal=True never returns None
-        (resp_dir / f"resp_{batch_idx:03d}.json").write_text(json.dumps(resp))
-        batch_idx += 1
+        for resp in _fetch_orgs(api_key, orgs, select):
+            (resp_dir / f"resp_{batch_idx:03d}.json").write_text(json.dumps(resp))
+            batch_idx += 1
         for c in chunk:
             index.append(
                 {
@@ -481,8 +502,8 @@ def enrich_whitespace(
                 }
             )
         print(
-            f"[fetch] whitespace batch {batch_idx - start_batch}: {len(chunk)} sent, "
-            f"matched={resp.get('matched_count')} credits={resp.get('credits_used')}"
+            f"[fetch] whitespace orgs {bi + 1}-{bi + len(chunk)} of "
+            f"{len(candidates)} done"
         )
     print(f"[fetch] whitespace enriched: {len(candidates)} candidates.")
 

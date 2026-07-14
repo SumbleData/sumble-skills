@@ -69,7 +69,6 @@ DEFAULT_CATEGORY_SECTION = {
     "icp_persona_count": "size",
     "relevant_tech_team_count": "size",
     "intent_project_tech_count": "size",
-    "intent_project_persona_count": "size",
     "funding": "size",
     "icp_persona_concentration": "concentration",
     "relevant_tech_team_concentration": "concentration",
@@ -86,10 +85,6 @@ CATEGORY_META = {
     "intent_project_tech_count": {
         "label": "Project × tech",
         "default_pct": 15.0,
-    },
-    "intent_project_persona_count": {
-        "label": "Project × persona",
-        "default_pct": 10.0,
     },
     "funding": {"label": "Funding (total raised)", "default_pct": 12.0},
     "icp_persona_concentration": {
@@ -210,7 +205,6 @@ def main() -> None:
     techs_all = techs_key + techs_other
     tech_tool_slugs = [t["slug"] for t in techs if t.get("kind") != "category"]
     tech_cat_slugs = [t["slug"] for t in techs if t.get("kind") == "category"]
-    persona_names = [p["name"] for p in personas]
     since = sumble_v6.since_3mo()
 
     persona_decay = decay_weights(len(personas))
@@ -242,7 +236,7 @@ def main() -> None:
     default_section = sections_list[0]["key"]
 
     def _cat_active(ck: str) -> bool:
-        if ck in ("intent_project_tech_count", "intent_project_persona_count"):
+        if ck == "intent_project_tech_count":
             return intent_active
         if ck in ("funding", "funding_momentum"):
             return funding_active
@@ -559,7 +553,6 @@ def main() -> None:
         for idx, proj in enumerate(projects):
             pslug, plabel = proj["slug"], proj["label"]
             tech_term = sumble_v6.intent_tech_query(pslug, techs)
-            persona_term = sumble_v6.intent_persona_query(pslug, persona_names)
             add_signal(
                 key=f"intent_project_tech_count_{pslug}",
                 column=f"{pslug}_x_relevant_tech_jobposts",
@@ -594,33 +587,6 @@ def main() -> None:
                             if tech_cat_slugs
                             else {}
                         ),
-                        "hiring_period": ["3mo"],
-                    },
-                },
-            )
-            add_signal(
-                key=f"intent_project_persona_count_{pslug}",
-                column=f"{pslug}_x_relevant_persona_jobposts",
-                label=f"{plabel} × persona (3mo)",
-                category="intent_project_persona_count",
-                transform="log",
-                within=project_decay[idx],
-                api_supported=True,
-                source={
-                    "why": (
-                        f"Recent {plabel} jobs for an ICP persona show who is "
-                        "staffing the project — buying-window + fit."
-                    ),
-                    "kind": "sumble_api",
-                    "api": _api_block(
-                        "advanced_query", persona_term, "job_post_count", since
-                    ),
-                },
-                sumble_link={
-                    "path": "/jobs",
-                    "filters": {
-                        "project": [pslug],
-                        "job_function": persona_names,
                         "hiring_period": ["3mo"],
                     },
                 },
