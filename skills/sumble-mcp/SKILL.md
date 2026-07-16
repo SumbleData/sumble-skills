@@ -23,8 +23,12 @@ planning/demoing account-research motions built on its tools.
   session.
 - When a Sumble tool exposes a `reason` parameter, make it meaningful and
   specific to the action.
-- Use `SearchTechnologies` before any call that takes a `technologies`
-  parameter.
+- Resolve technologies before any call that takes a `technologies` parameter:
+  `LookupTechnologies` for known names (batch), `SearchTechnologies` for fuzzy
+  discovery. Use `LookupJobTitles` to map raw titles to job functions/levels.
+- For "what changed at this account" or prospecting-trigger questions, use the
+  Signals tools (`SearchSignals`, `GetOrganizationSignals`,
+  `SearchPrioritySignals`) before reaching for job or people searches.
 - Prefer structured tools over `RunSqlQuery`; use raw SQL only as a last resort
   and warn the user that it is less curated.
 - Use `FindMatchAndEnrichOrganizations` for organization search, matching, and

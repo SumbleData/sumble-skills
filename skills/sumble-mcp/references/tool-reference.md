@@ -57,13 +57,25 @@ Bad:
 
 | Tool | Purpose | Cost |
 |---|---|---|
-| `FindMatchAndEnrichJobs` | Find, look up, and enrich job postings in one call. Search with advanced query filters (including org-list scoping) or enrich a list of `job_id`s; request only the attributes needed (the full `description` is a paid attribute). Optional `related_people` returns hiring managers and adjacent team members per job. | 1 credit per job + 1 per paid attribute (title is free) + 1 per related person returned |
+| `FindMatchAndEnrichJobs` | Find, look up, and enrich job postings in one call. Search with advanced query filters or enrich a list of `job_id`s; request only the attributes needed (the full `description` is a paid attribute). To scope to companies, resolve them to IDs first and pass the `organization_ids` param; for saved lists pass the `organization_list_id` param (prefer both over the query language's fuzzy `organization` / `organizations_list` nodes). Optional `related_people` returns hiring managers and adjacent team members per job. | 1 credit per job + 1 per paid attribute (title is free) + 1 per related person returned |
 
 ### People
 
 | Tool | Purpose | Cost |
 |---|---|---|
-| `FindMatchAndEnrichPeople` | Find, match, and enrich people in one call. Resolve person IDs, LinkedIn URLs, or emails, or search within organizations with advanced query filters; request only the attributes needed. Optional `related_people` (inferred managers and direct reports) and `email`/`phone` contact reveals. | 1 credit per person + 1 per paid attribute (name is free) + 1 per related person; 10 credits per first email reveal, 80 credits per first phone reveal, free on repeat reveals of the same type or if unavailable |
+| `FindMatchAndEnrichPeople` | Find, match, and enrich people in one call. Resolve person IDs, LinkedIn URLs, or emails (match mode), or search within organizations (filter mode — `organization_ids` and/or `organization_list_id` is REQUIRED) with advanced query filters; request only the attributes needed. The `person_score` attribute ranks people 0-100 against the account's ICP (filter mode, single org only). Optional `related_people` (inferred managers and direct reports) and `email`/`phone` contact reveals. | 1 credit per person + 1 per paid attribute (name is free) + 1 per related person; matching by email costs 20 extra credits when it resolves (unresolved is free); 10 credits per first email reveal, 80 credits per first phone reveal, free on repeat reveals of the same type or if unavailable |
+
+### Signals
+
+| Tool | Purpose | Cost |
+|---|---|---|
+| `SearchSignals` | Search Sumble Signals (champion moves, hires and promotions, technology/product mentions, projects, hiring trends) across accounts. Filter by signal IDs, organization IDs, person IDs, technology slugs, job functions, priorities, or saved organization lists; filters AND together, values within a filter OR. Job-post signals include ranked `suggested_contacts`. | 1 credit per signal returned |
+| `SearchPrioritySignals` | Search the user's Priority Signals digest items by source signal IDs, organization IDs, person IDs, or job post IDs. Returns the most recent 20 matches. | 1 credit per priority signal returned; empty results free |
+| `GetOrganizationSignals` | Recent sales signals for ONE target account by Sumble organization ID (resolve names/domains with `FindMatchAndEnrichOrganizations` first). Optional technology-slug filter. Use for "what changed at X" and why-reach-out-now angles. | 1 credit per signal returned |
+
+Signals return `sumble_url` deep links plus `person_id` / `job_post_id` fields
+you can feed into `FindMatchAndEnrichPeople` / `FindMatchAndEnrichJobs` for
+follow-up research.
 
 ### Organization lists
 
@@ -73,6 +85,8 @@ Bad:
 | `GetOrganizationList` | Fetch contents of one org list, including each organization's Sumble profile URL and own website URL. | 1 credit per org |
 | `CreateOrganizationList` | Create an empty org list. | Free |
 | `AddOrganizationsToList` | Add organizations by IDs or slugs. | Free |
+| `SetOrganizationListDeleted` | Soft-delete an org list, or restore a deleted one. | Free |
+| `SetOrganizationListSignals` | Include or exclude a list's accounts from future Signals delivery (lists are included by default). | Free |
 
 ### Contact lists
 
@@ -83,11 +97,15 @@ Bad:
 | `CreateContactList` | Create an empty contact list. | Free |
 | `AddContactsToList` | Add people by Sumble person IDs. | Free |
 
-### Technology reference
+### Reference lookups
 
 | Tool | Purpose | Cost |
 |---|---|---|
-| `SearchTechnologies` | Resolve free-text technology names to Sumble slugs. Use before any `technologies` parameter. | 1 credit per search |
+| `SearchTechnologies` | Fuzzy free-text technology discovery ("what does Sumble call X?"). | 1 credit per search |
+| `LookupTechnologies` | Resolve a batch of technology names, slugs, or aliases to canonical IDs, slugs, names, and categories. Prefer this over repeated `SearchTechnologies` calls when you already know the names. | 1 credit per 100 matched technologies |
+| `LookupTechnologyCategories` | Resolve technology category slugs or names to canonical categories and their constituent technologies. | 1 credit per 100 matched categories |
+| `LookupJobTitles` | Resolve raw job titles to canonical job function and level for use in filters. | 1 credit per 100 matched titles |
+| `LookupProjects` | Resolve project names or slugs to canonical IDs, slugs, and names. | 1 credit per 100 matched projects |
 
 ### Database
 
@@ -131,7 +149,16 @@ Bad:
 
 ### Guardrails
 
-- Use `SearchTechnologies` before passing `technologies`.
+- Resolve technologies before passing `technologies`: `LookupTechnologies` for
+  known names (batch, 1 credit per 100), `SearchTechnologies` for fuzzy
+  discovery.
+- Use `LookupJobTitles` to map raw titles to canonical job functions and levels
+  before filtering on them.
+- Scope jobs/people to companies via the `organization_ids` /
+  `organization_list_id` parameters, not the query language's fuzzy
+  `organization EQ '<name>'` or `organizations_list` nodes.
+- People filter mode requires an organization scope
+  (`organization_ids` and/or `organization_list_id`).
 - Do not combine org filters with job filters using `OR`.
 - Use full state names in country/location filters.
 - `job_title` and `job_description` are not filterable. Use function and level.
@@ -152,13 +179,16 @@ Trigger: "here's my book, how do I prioritize it"
 1. Call `GetMyCompanyProfile` and hold key tier categories, job functions, and projects in memory.
 2. Call `ListOrganizationLists` and prefer a `group` list. If the user pasted raw names instead, use `FindMatchAndEnrichOrganizations` to resolve them, then `CreateOrganizationList` and `AddOrganizationsToList`.
 3. Call `GetOrganizationList` for the chosen list.
-4. Run one cheap signal pass with `FindMatchAndEnrichJobs` scoped to the list:
+4. Run one cheap signal pass with `FindMatchAndEnrichJobs`, passing the
+   `organization_list_id` parameter for the chosen list plus the query:
 
 ```text
-organizations_list EQ '<list_id>'
-AND (project IN (<key_projects>) OR technology_category IN (<key_categories>))
+(project IN (<key_projects>) OR technology_category IN (<key_categories>))
 AND hiring_period EQ '3mo'
 ```
+
+   Optionally also call `SearchSignals` filtered to the list
+   (`account_list_ids`) for champion moves and other non-hiring triggers.
 
 5. Tier accounts:
    A. hiring signal on key projects or key categories
@@ -257,6 +287,7 @@ Budget: roughly 60-80 credits.
 - Tighten organization filters before `FindMatchAndEnrichOrganizations`, then request only needed paid attributes and entity metrics.
 - `GetIntelligenceBrief` is 50 credits per completed brief. Use it after narrowing to a high-priority account.
 - Phone reveals in `FindMatchAndEnrichPeople` are expensive (80 credits). Prefer email-only when email is enough; keep contact reveals to the top 2-3 targets.
+- Signals tools bill 1 credit per signal returned — filter tightly (list, org, technology, priority) rather than pulling an unfiltered feed.
 - `RunSqlQuery` bills by response size. Always use `LIMIT` and select only the columns you need.
 - On a 402 response, direct the user to purchase more credits.
 - Always surface URLs returned by the tools.
