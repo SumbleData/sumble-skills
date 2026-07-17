@@ -1,0 +1,52 @@
+name: Build skill zips
+
+# Package the installable skills into downloadable zip archives and publish
+# them as assets on the fixed `skill-zips` release, so sumble.com's
+# "Get the skill" buttons always serve an archive that matches main.
+#
+# Stable download URL (survives asset re-uploads):
+#   https://github.com/SumbleData/sumble-skills/releases/download/skill-zips/sumble-account-research.zip
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/sumble-account-research/**'
+      - '.github/workflows/build-skill-zips.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-skill-zips
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sumble-account-research.zip
+        run: |
+          set -euo pipefail
+          # articles/ is web-guide copy, not part of the installable skill.
+          cd skills
+          zip -r ../sumble-account-research.zip sumble-account-research \
+            -x "sumble-account-research/articles/*" -x "*.DS_Store"
+          cd ..
+          unzip -l sumble-account-research.zip
+
+      - name: Publish to the skill-zips release
+        run: |
+          set -euo pipefail
+          gh release view skill-zips --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create skill-zips \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Skill zips" \
+              --notes "Auto-built skill archives, rebuilt on every push to main that touches a packaged skill. Download the asset below."
+          gh release upload skill-zips sumble-account-research.zip \
+            --repo "$GITHUB_REPOSITORY" --clobber

@@ -111,6 +111,14 @@ run `/sumble-account-scoring`, `/sumble-people-scoring`, or `/sumble-mcp`.
 > Connect the Sumble MCP once per tool — see [docs.sumble.com/api/mcp](https://docs.sumble.com/api/mcp).
 > Each skill's own `README.md` has a step-by-step, no-experience-needed walkthrough.
 
+### Direct zip download
+
+`sumble-account-research` is also published as a standalone zip, rebuilt
+automatically on every push to `main` (see
+`.github/workflows/build-skill-zips.yml`):
+
+- [sumble-account-research.zip](https://github.com/SumbleData/sumble-skills/releases/download/skill-zips/sumble-account-research.zip)
+
 ## How a skill runs
 
 The agent walks you through a short, scripted interview (your company, your ICP,

@@ -1,0 +1,20 @@
+name: Validate skills
+
+# Block any change that puts a SKILL.md over the Agent Skills platform limits
+# (description <= 1024 chars, name <= 64 chars, lowercase/digits/hyphens). An
+# over-long description silently breaks the skill when it's installed.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate SKILL.md metadata limits
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 .github/scripts/validate_skill_metadata.py
