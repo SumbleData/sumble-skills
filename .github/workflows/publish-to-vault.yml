@@ -1,0 +1,104 @@
+name: Publish to sx vault
+
+# Publish every skill that changed in this push to the internal sx vault
+# (git@github.com:SumbleData/skills.git), so teammates' `sx install` picks up
+# new versions automatically. Uses the sx CLI (https://github.com/sleuth-io/sx).
+#
+# Setup (one-time, requires admin on both repos):
+#   1. Generate an SSH keypair (no passphrase):
+#        ssh-keygen -t ed25519 -f sx-vault-deploy -N ""
+#   2. Add the PUBLIC key as a Deploy Key WITH WRITE ACCESS on
+#        github.com/SumbleData/skills  (Settings -> Deploy keys).
+#   3. Add the PRIVATE key as an Actions secret named SX_VAULT_DEPLOY_KEY
+#        on github.com/SumbleData/sumble-skills  (Settings -> Secrets -> Actions).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-to-vault
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      HAS_DEPLOY_KEY: ${{ secrets.SX_VAULT_DEPLOY_KEY != '' }}
+      EVENT_NAME: ${{ github.event_name }}
+      BEFORE_SHA: ${{ github.event.before }}
+    steps:
+      - name: Skip notice (no deploy key configured)
+        if: env.HAS_DEPLOY_KEY != 'true'
+        run: echo "SX_VAULT_DEPLOY_KEY not set — skipping vault publish. See workflow header for setup."
+
+      - name: Checkout
+        if: env.HAS_DEPLOY_KEY == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine changed skills
+        if: env.HAS_DEPLOY_KEY == 'true'
+        id: changed
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            # Manual run, or no prior commit to diff against: publish every skill.
+            dirs=$(find skills -mindepth 1 -maxdepth 1 -type d | sort)
+          else
+            dirs=$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" -- skills | cut -d/ -f1-2 | sort -u)
+          fi
+          echo "dirs<<SKILLS_EOF" >> "$GITHUB_OUTPUT"
+          echo "$dirs" >> "$GITHUB_OUTPUT"
+          echo "SKILLS_EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Install sx
+        if: env.HAS_DEPLOY_KEY == 'true'
+        run: curl -fsSL https://raw.githubusercontent.com/sleuth-io/sx/main/install.sh | bash
+
+      - name: Configure git identity for vault commits
+        if: env.HAS_DEPLOY_KEY == 'true'
+        run: |
+          git config --global user.name "sumble-skills-vault-sync[bot]"
+          git config --global user.email "sync@sumble.com"
+
+      - name: Trust github.com host key
+        if: env.HAS_DEPLOY_KEY == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa,ed25519 github.com >> ~/.ssh/known_hosts
+
+      - name: Configure sx vault
+        if: env.HAS_DEPLOY_KEY == 'true'
+        env:
+          SX_SSH_KEY: ${{ secrets.SX_VAULT_DEPLOY_KEY }}
+        run: |
+          "$HOME/.local/bin/sx" init --type git --repo-url git@github.com:SumbleData/skills.git
+
+      - name: Publish changed skills
+        if: env.HAS_DEPLOY_KEY == 'true'
+        env:
+          SX_SSH_KEY: ${{ secrets.SX_VAULT_DEPLOY_KEY }}
+          CHANGED_DIRS: ${{ steps.changed.outputs.dirs }}
+        run: |
+          set -euo pipefail
+          sx="$HOME/.local/bin/sx"
+          published=0
+          while IFS= read -r dir; do
+            [ -n "$dir" ] || continue
+            if [ -f "$dir/SKILL.md" ]; then
+              echo "Publishing $dir"
+              "$sx" add "./$dir" -y --no-install
+              published=$((published + 1))
+            else
+              echo "Skipping $dir (no SKILL.md, e.g. deleted)"
+            fi
+          done <<< "$CHANGED_DIRS"
+          echo "Published $published skill(s) to the vault."
