@@ -472,6 +472,7 @@ def main() -> None:
             category="funding",
             transform="log",
             within=total_within,
+            fmt="int",
             api_supported=True,
             source={
                 "why": (
@@ -498,6 +499,7 @@ def main() -> None:
             category=momentum_cat,
             transform="recency",
             within=momentum_within,
+            fmt="int",
             api_supported=True,
             source={
                 "why": (
@@ -528,6 +530,7 @@ def main() -> None:
             category=momentum_cat,
             transform="log",
             within=momentum_within,
+            fmt="int",
             api_supported=True,
             source={
                 "why": (

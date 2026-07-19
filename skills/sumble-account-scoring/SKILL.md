@@ -293,9 +293,10 @@ across key+other; projects key only). Project × persona is intentionally
 NOT produced.
 
 **Funding columns** (only when `spec.include_funding` is true — **OFF by
-default and never suggested**: funding only covers venture-backed companies,
-so scoring it artificially boosts them; see the Stage 1 Q4 note. Enable only
-on explicit user request, with the coverage-skew warning) — pulled
+default; the Q2 interview asks about it** with a venture-backed-bias warning:
+funding only covers venture-backed companies, so scoring it artificially boosts
+them; see the Stage 1 Q2 funding question. Enable only when the user opts in,
+with the bias warning) — pulled
 from the `/v6/organizations` funding attributes (1 credit each per matched
 org). Three scoring signals (all `api_supported:true`, reproduced by
 `score_accounts.py`):
@@ -314,7 +315,7 @@ org). Three scoring signals (all `api_supported:true`, reproduced by
 The Growth & momentum segment always exists (persona growth), so funding
 momentum lands there regardless of whether the spec has projects. Set
 `"include_funding": true` in `spec.json` (Stage 2a) to enable — again, only
-when the user explicitly asked. (These default segment placements move if
+when the user opted in at the Q2 funding question. (These default segment placements move if
 `spec.section_plan` reassigns the `funding` / `funding_momentum` categories.)
 
 **Non-Sumble (1P) columns** — anything the user can join by account, one
@@ -413,9 +414,9 @@ the last time it was shown, re-print the whole updated list, not a diff.
    accepted. **The summary must be COMPLETE — every element of the ICP the
    pipeline will fetch, with nothing elided:** all personas with key/other
    tiers; every technology category with its coverage% and the full list of
-   absorbed techs; every individual tech with its tier; every project; and —
-   only if the user explicitly asked for funding — that funding attributes
-   are on. Render it in the message itself (see the Confirmation rule above
+   absorbed techs; every individual tech with its tier; every project; and
+   whether funding attributes are scored (`Funding: on/off`, per the funding
+   question below). Render it in the message itself (see the Confirmation rule above
    — never rely on question-widget option labels to carry the list). Example:
    ```
    Proposed ICP for <company>:
@@ -438,6 +439,17 @@ the last time it was shown, re-print the whole updated list, not a diff.
      across `tier: key` AND `other`.
    (Project × persona is intentionally NOT produced — only project × tech.)
    If no project genuinely signals intent, skip this sub-step.
+
+   **Also ask whether to include FUNDING signals** (part of confirming the ICP).
+   Ask ONE yes/no: should funding attributes — total raised (Size), latest-round
+   size + recency (Growth & momentum) — be scored? **Always pair the question
+   with the bias warning, in the message itself:** funding data only exists for
+   venture-backed companies (everyone else reads 0), so including it creates an
+   **implicit bias toward VC-backed companies**. It can be reasonable when the
+   universe is overwhelmingly venture-backed (e.g. an AI-native / startup ICP);
+   otherwise leave it off. **Default OFF** — set `spec.include_funding: true`
+   only if the user opts in, and reflect the choice in the ICP summary
+   (`Funding: on/off`).
 
 3. **Internal (1P) data — what can they bring? (optional, any mode).** Ask ONE
    question: beyond Sumble's data, is there internal data they'd like folded
@@ -477,13 +489,16 @@ the last time it was shown, re-print the whole updated list, not a diff.
    out of the blend; present the adjusted blend as the proposal, not as an
    afterthought.
 
-   **Do NOT suggest funding attributes.** Funding data only exists for
-   venture-backed companies — everyone else reads 0 — so scoring it
-   artificially boosts startups (the partial-coverage principle in
-   `articles/01`); what funding indicates shows up in growth attributes
-   anyway. Include funding ONLY if the user explicitly asks for it, and when
-   they do, warn them about the coverage skew (it can be reasonable when
-   their universe is overwhelmingly venture-backed).
+   **Funding is decided in Q2, not here.** Whether to score funding attributes
+   — with the venture-backed-bias warning — is asked during the ICP
+   confirmation (Q2, alongside the buying windows). Don't re-ask it here; just
+   honor the user's Q2 choice (`spec.include_funding`) and let the funding
+   categories land in their default segments (total raised → Size; latest-round
+   size + recency → Growth & momentum). Rationale for the warning: funding data
+   only exists for venture-backed companies — everyone else reads 0 — so scoring
+   it creates an implicit bias toward VC-backed companies (the partial-coverage
+   principle in `articles/01`); it's reasonable only when the universe is
+   overwhelmingly venture-backed.
 
    Present the proposed blend with one yes/edit prompt. The user can
    **rename, reweight, drop, or add segments**, and may **repeat a signal in
