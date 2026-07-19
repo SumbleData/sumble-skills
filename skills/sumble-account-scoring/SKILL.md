@@ -932,6 +932,8 @@ cp <skill_dir>/template/score_sheet.py     <output_root>/score_sheet.py
 cp <skill_dir>/template/score_accounts.py  <output_root>/score_accounts.py
 cp <skill_dir>/template/README.md          <output_root>/README.md
 cp <skill_dir>/template/static/*           <output_root>/static/
+cp <skill_dir>/template/Dockerfile         <output_root>/Dockerfile
+cp <skill_dir>/template/.dockerignore      <output_root>/.dockerignore
 python3 <skill_dir>/template/_build/build_weights.py --raw <output_root>/_raw
 python3 <skill_dir>/template/_build/fit_weights.py --raw <output_root>/_raw
 ```
@@ -942,6 +944,12 @@ the spec + audit into the live config with the **policy-default** weights;
 weights + calibration" below) and rewrites the config in place. Surface the
 `_raw/_weight_fit_report.json` summary to the user (default vs fitted held-out
 AUC, and whether the fit was adopted) so they know how the sliders were set.
+
+The `Dockerfile` + `.dockerignore` are copied in so any demo is
+**fly-deploy-ready** (`/fly-deploy`) with no extra steps — they're inert for
+demos you only run locally. The app's HTTP Basic Auth is **env-gated**: it
+activates only when `BASIC_AUTH_PASS` is set (a deploy secret), so
+`python3 app.py` stays open with no login locally.
 
 Write `<output_root>/.gitignore` via `Write`:
 ```

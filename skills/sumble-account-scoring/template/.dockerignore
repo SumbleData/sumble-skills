@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# Build-time scratch only; not needed at runtime (data.csv IS needed and kept).
+_raw/
+.gitignore
+Dockerfile
+.dockerignore

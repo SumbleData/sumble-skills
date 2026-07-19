@@ -15,8 +15,10 @@ this file stays the same across customers.
 
 from __future__ import annotations
 
+import base64
 import csv
 import gzip
+import hmac
 import json
 import math
 import os
@@ -370,7 +372,11 @@ def load_state() -> dict[str, Any]:
     # ≥2 distinct non-blank categories exist; a single-category (or Branch B
     # blank) run keeps the table clean.
     _cat_order = [
-        "customer", "allocated", "unallocated", "whitespace", "whitespace_subsidiary",
+        "customer",
+        "allocated",
+        "unallocated",
+        "whitespace",
+        "whitespace_subsidiary",
     ]
     present = {str(r.get("account_category") or "") for r in universe}
     categories_present = [c for c in _cat_order if c in present]
@@ -451,12 +457,37 @@ STATE = load_state()
 
 STATIC_DIR = APP_DIR / "static"
 
+# Optional HTTP Basic Auth: enabled only when BASIC_AUTH_PASS is set (e.g. in a
+# deployed container). Left unset locally so `python app.py` stays open.
+BASIC_AUTH_USER = os.environ.get("BASIC_AUTH_USER", "sumble")
+BASIC_AUTH_PASS = os.environ.get("BASIC_AUTH_PASS")
+_EXPECTED_AUTH = (
+    "Basic " + base64.b64encode(f"{BASIC_AUTH_USER}:{BASIC_AUTH_PASS}".encode()).decode()
+    if BASIC_AUTH_PASS
+    else None
+)
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
+    def _require_auth(self) -> bool:
+        """When a password is configured (BASIC_AUTH_PASS), gate every request
+        behind HTTP Basic Auth. Returns True if the request may proceed."""
+        if _EXPECTED_AUTH is None:
+            return True
+        if hmac.compare_digest(self.headers.get("Authorization", ""), _EXPECTED_AUTH):
+            return True
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Account scoring"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def do_GET(self) -> None:  # noqa: N802 (stdlib name)
+        if not self._require_auth():
+            return
         if self.path in ("/", "/index.html"):
             self.path = "/index.html"
             return super().do_GET()
@@ -473,6 +504,8 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802 (stdlib name)
+        if not self._require_auth():
+            return
         if self.path != "/api/save-weights":
             self.send_error(404, "not found")
             return
