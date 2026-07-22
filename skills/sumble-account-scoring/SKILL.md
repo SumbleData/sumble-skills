@@ -1,6 +1,6 @@
 ---
 name: sumble-account-scoring
-description: "Build an account-scoring AND/OR whitespace web app powered by Sumble data and optional first-party data. One skill, three objectives: score the accounts in your CRM, find whitespace (high-ICP-fit orgs NOT in your CRM), or both in one ranked sheet. Interviews the user about their ICP, pulls data from internal systems and possibly Sumble MCP, and generates a self-contained, zero-dependency Python + HTML/JS app at account_scoring/<company>/ with real-time slider re-weighting, an account-category column + filters (customer / allocated / unallocated / whitespace), and an evaluation mechanism to tune the score. Outputs a config file describing the scoring method and a Python script that applies it across all accounts."
+description: "Build an account-scoring AND/OR whitespace web app powered by Sumble data and optional first-party data. One skill, three objectives: score the accounts in your CRM, find whitespace (high-ICP-fit orgs NOT in your CRM), or both in one ranked sheet. Interviews the user about their ICP, pulls data from internal systems and possibly Sumble MCP, and generates a self-contained, zero-dependency Python + HTML/JS app at account_scoring/{company}/ with real-time slider re-weighting, an account-category column + filters (customer / allocated / unallocated / whitespace), and an evaluation mechanism to tune the score. Outputs a config file describing the scoring method and a Python script that applies it across all accounts."
 ---
 
 # Account Scoring
@@ -70,7 +70,7 @@ whitespace / both) and the rest of the run adapts.
   key **without echoing** (so it never lands in the chat transcript or shell
   history), and saves it to `~/.config/sumble/api_key` (chmod 0600):
   ```bash
-  ! python3 <skill_dir>/template/_build/set_api_key.py
+  ! python3 {skill_dir}/template/_build/set_api_key.py
   ```
   **Always `python3`, never bare `python`** — stock macOS (and many Linux
   boxes) ship `python3` only, and `python ...` fails with "command not found".
@@ -78,7 +78,7 @@ whitespace / both) and the rest of the run adapts.
   shell version (identical behavior — hidden input, `~/.config/sumble/api_key`,
   chmod 600):
   ```bash
-  ! sh <skill_dir>/template/_build/set_api_key.sh
+  ! sh {skill_dir}/template/_build/set_api_key.sh
   ```
   Use a hidden-input helper as the default — **don't ask the user to paste the
   key into the chat** (it would be logged). `fetch_data.py` and
@@ -105,37 +105,37 @@ the portable way to avoid that everywhere. Follow these rules exactly:
   command substitution (`$(…)` or backticks).
 - **Use absolute paths, never `cd`.** Every `_build/*` script takes its directory
   as an argument, so run e.g.
-  `python3 <skill_dir>/template/_build/fetch_data.py --raw <output_root>/_raw`
+  `python3 {skill_dir}/template/_build/fetch_data.py --raw {output_root}/_raw`
   from anywhere — no `cd`, no relative `_raw`.
 - **Run the pipeline in the foreground.** The scripts stream progress to stdout
   (the agent shows it live) and finish in a few minutes. NEVER background a step
   (`nohup … &`) and poll it with `ps aux | grep …` / `tail` — every poll is a
   fresh approval prompt, and the redirection trips the guard.
 - **No inline Python, no heredocs.** Any multi-line Python, JSON shaping, counting,
-  or snapshotting → write a `.py` to `<output_root>/_raw/` (with your agent's file
-  tool) and run it as a single `python3 <abs>.py`. Never `python3 -c "…{…}…"` (the
+  or snapshotting → write a `.py` to `{output_root}/_raw/` (with your agent's file
+  tool) and run it as a single `python3 {abs}.py`. Never `python3 -c "…{…}…"` (the
   `{`+`"` trips the prompt).
 - **Inspect with your agent's file tools, not the shell.** Use the native
   file-read / glob / grep tools (Read·Glob·Grep in Claude Code; the equivalents in
   Codex / Cursor) — never `cat` / `tail` / `head` / `ls` / `wc` / `grep`.
 
-The only shell this skill needs is `mkdir -p <abs>`, `cp <abs> <abs>`, and
-`python3 <abs>/script.py [args]` (the `_build/*` pipeline + Stage 4
+The only shell this skill needs is `mkdir -p {abs}`, `cp {abs} {abs}`, and
+`python3 {abs}/script.py [args]` (the `_build/*` pipeline + Stage 4
 `python3 app.py`) — each as one standalone command. Everything else is a tool.
 
 **Running a command in the user's own terminal.** A couple of steps (the API-key
 helper, launching `app.py`) are best run by the user so they're interactive / stay
 up. In **Claude Code** prefix the command with `!` to run it in the user's
-terminal (e.g. `! python3 <skill_dir>/template/_build/set_api_key.py`). In
+terminal (e.g. `! python3 {skill_dir}/template/_build/set_api_key.py`). In
 **Codex / Cursor** (no `!` syntax), just tell the user to paste that same command
 (without the `!`) into a terminal themselves. Always write `python3`, never bare
 `python` (absent on stock macOS); when Python is unavailable entirely, every
-`set_api_key.py` usage has a shell twin: `sh <skill_dir>/template/_build/set_api_key.sh`.
+`set_api_key.py` usage has a shell twin: `sh {skill_dir}/template/_build/set_api_key.sh`.
 
 ## Output
 
 ```
-account_scoring/<company>/
+account_scoring/{company}/
   app.py                          stdlib http.server (copied from template/, unchanged — no deps)
   account-scoring-weights.json    weights + scoring formula + data-source
                                    metadata + derived columns + table layout
@@ -187,7 +187,7 @@ both with fallbacks):**
 
 Before handing over (Stage 4), spot-check the `score.csv` header with your file
 tools: it must contain `headquarters_country`, `sumble_url`, and at least one
-`<signal> link` column. If any is missing, the config or data was built wrong —
+`{signal} link` column. If any is missing, the config or data was built wrong —
 fix it before telling the user the app is ready.
 
 **Zero-dependency rule:** `app.py` uses only the stdlib (`csv`, `json`,
@@ -269,7 +269,7 @@ a `flag` column (above) OR membership in the `tags` column.
   purely over the org's Sumble tags. Drives the tag-multiplier picker and the
   attribute-chip filters.
 - `is_b2b` / `is_b2c` / `is_digital_native` / `is_ai_native` (0/1) —
-  convenience flags derived from `tags` (`array_contains(tags, '<slug>')`
+  convenience flags derived from `tags` (`array_contains(tags, '{slug}')`
   on the canonical Sumble slugs `b2b`, `b2c`, `digital_native`,
   `is_ai_native`). Optional — the chip falls back to a `tags`-membership
   check if these aren't emitted. **`b2b` and `b2c` are independent tags,
@@ -430,7 +430,7 @@ option labels (interactive question widgets truncate labels and descriptions
 — they are NOT a substitute for printing the list). If anything changed since
 the last time it was shown, re-print the whole updated list, not a diff.
 
-1. Please ask the company's name and their URL. You can prefill if you know it and ask the user to confirm. Also ask them where they want the account scoring to be stored. Can default to ./tmp/account_scoring/<company> directory. 
+1. Please ask the company's name and their URL. You can prefill if you know it and ask the user to confirm. Also ask them where they want the account scoring to be stored. Can default to ./tmp/account_scoring/{company} directory. 
 
 2. Confirm the ICP. Call `GetMyCompanyProfile` for the URL and propose
    personas + technologies (+ projects), showing both `key` and `other`
@@ -481,7 +481,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
    question below). Render it in the message itself (see the Confirmation rule above
    — never rely on question-widget option labels to carry the list). Example:
    ```
-   Proposed ICP for <company>:
+   Proposed ICP for {company}:
      • Personas (key): Sales, RevOps · (other): Marketing
      • Technology categories (predefined): Inference & Serving (31% — absorbs
        vllm, baseten, modal, replicate)
@@ -575,7 +575,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
 
    Encode the user's choices in `spec.section_plan` (schema in
    `template/_build/README.md`): `{sections:[{key,label,default_pct}],
-   category_section:{<category>:<segment>}, category_meta:{...}}`. Omit
+   category_section:{ {category}:{segment} }, category_meta:{...}}`. Omit
    `section_plan` to take the three defaults verbatim. Don't write any
    objective field. (The buying-window confirmation still happens in Q2.)
 
@@ -696,7 +696,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
    **concentration** (size-neutral density), 40% by **fastest-growing** key
    personas (split evenly across them). The persona strata use the v6 endpoint's
    per-job-function sorts — `order_by_column: people_concentration` and
-   `people_count_growth_1y` with `order_by_job_function: <persona>` — so they
+   `people_count_growth_1y` with `order_by_job_function: {persona}` — so they
    rank by the persona's true share / YoY people growth, not org-total proxies.
    Each stratum is gated on a min-employee floor (`min_employees`, default 50)
    and deduped against the CRM and prior strata. A candidate whose **parent** is a
@@ -772,7 +772,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
    `digital_native`, `is_ai_native`, `it_services`, `professional_services`).
    Calibration is purely over the org's Sumble tags (`professional_services`
    is one of them, natively); whole industries are **not** synthesized into
-   `industry__<slug>` tags or calibrated. These are **applied by default**
+   `industry__{slug}` tags or calibrated. These are **applied by default**
    (written to `tag_multipliers`, not just suggested) — the app opens with
    them active and tunable. The audit lands in
    `_raw/_calibration_audit.json` (`attrs`).
@@ -796,7 +796,7 @@ the last time it was shown, re-print the whole updated list, not a diff.
    surface the conflict to the user rather than silently trusting the small
    sample. Apply confirmed **org-tag** boosts/penalties to
    `account-scoring-weights.json.tag_multipliers`
-   (`{tag: "<attr>", pct, direction}`). Industries are not calibrated as
+   (`{tag: "{attr}", pct, direction}`). Industries are not calibrated as
    tags, so act on industry decisions via `universe_filters.exclude_industries`
    (drop them) instead — `professional_services` needs no special handling:
    it's a native org tag, calibrated and excludable like any other tag.
@@ -830,7 +830,7 @@ Resolve every ICP term to its canonical Sumble slug/name in ONE call to the
 lookup helper (it uses the v6 lookup endpoints; needs `SUMBLE_API_KEY`):
 
 ```bash
-python3 <skill_dir>/template/_build/lookup.py --technologies clay,common-room,zoominfo --projects "generative ai,digital transformation" --titles "Machine Learning,AI Engineer,Revenue Operations"
+python3 {skill_dir}/template/_build/lookup.py --technologies clay,common-room,zoominfo --projects "generative ai,digital transformation" --titles "Machine Learning,AI Engineer,Revenue Operations"
 ```
 
 It prints `{technologies, projects, job_functions}`, each item `{input, slug,
@@ -868,7 +868,7 @@ less-sparse signals that match how Sumble already groups the stack — e.g. AWS
 Redshift + BigQuery + Snowflake → the **Cloud Data Warehouse** category.
 
 **A category signal counts the WHOLE category, not just the absorbed ICP
-techs.** When you adopt `{"slug": <cat>, "kind": "category"}`, the enrichment
+techs.** When you adopt `{"slug": {cat}, "kind": "category"}`, the enrichment
 (`technology_category` + `granularity: aggregate`) counts teams using ANY
 technology in that predefined Sumble category — including techs that were never
 in the ICP. This is the tradeoff `icp_coverage_pct` quantifies (below): it is
@@ -905,7 +905,7 @@ broader than the ICP, so prefer the individual techs. Apply the rules:
   first**; let each absorb its ICP techs not already taken by a higher-coverage
   category (no double-counting).
 - **Suggest a category** (replace its absorbed individual techs with one
-  `{"slug": <cat>, "kind": "category"}` entry) only when it absorbs **≥2** ICP
+  `{"slug": {cat}, "kind": "category"}` entry) only when it absorbs **≥2** ICP
   techs.
 - **Then sweep up whatever is left — do NOT stop here with a pile of orphan
   individual techs.** Unabsorbed techs are the *input* to the grouping pass
@@ -1074,15 +1074,15 @@ Shell-command discipline):
 
 ```bash
 # Score CRM (A):
-python3 <skill_dir>/template/_build/fetch_data.py --raw <output_root>/_raw
+python3 {skill_dir}/template/_build/fetch_data.py --raw {output_root}/_raw
 # Both — score CRM + N net-new whitespace candidates (CRM org_ids excluded) (C):
-python3 <skill_dir>/template/_build/fetch_data.py --raw <output_root>/_raw --whitespace 10000
+python3 {skill_dir}/template/_build/fetch_data.py --raw {output_root}/_raw --whitespace 10000
 # Whitespace-only (B) — sample.csv holds just customers (or is absent):
-python3 <skill_dir>/template/_build/fetch_data.py --raw <output_root>/_raw --whitespace 10000
+python3 {skill_dir}/template/_build/fetch_data.py --raw {output_root}/_raw --whitespace 10000
 # No lists — rank Sumble's universe by ICP:
-python3 <skill_dir>/template/_build/fetch_data.py --raw <output_root>/_raw --mode filter --pool 1000
+python3 {skill_dir}/template/_build/fetch_data.py --raw {output_root}/_raw --mode filter --pool 1000
 # then, all paths:
-python3 <skill_dir>/template/_build/merge_data.py --raw <output_root>/_raw
+python3 {skill_dir}/template/_build/merge_data.py --raw {output_root}/_raw
 ```
 
 `fetch_data.py` POSTs to `/v6/organizations` in ≤100-org batches (or paginated
@@ -1106,8 +1106,8 @@ this rough time estimate alongside the credit estimate before any bulk
 enrichment run**, so a multi-minute fetch isn't a surprise — and run it in the
 background, surfacing progress between stages rather than blocking.
 
-> If the key isn't set yet, run `! python3 <skill_dir>/template/_build/set_api_key.py`
-> (no Python? `! sh <skill_dir>/template/_build/set_api_key.sh` does the same)
+> If the key isn't set yet, run `! python3 {skill_dir}/template/_build/set_api_key.py`
+> (no Python? `! sh {skill_dir}/template/_build/set_api_key.sh` does the same)
 > first (prompts + saves it), or run the two `python` commands themselves via
 > `! python …` so they execute in the user's terminal.
 
@@ -1116,19 +1116,19 @@ background, surfacing progress between stages rather than blocking.
 ### Stage 3 — Generate the app
 
 ```bash
-mkdir -p <output_root>/static
-cp <skill_dir>/template/app.py             <output_root>/app.py
-cp <skill_dir>/template/score_sheet.py     <output_root>/score_sheet.py
-cp <skill_dir>/template/score_accounts.py  <output_root>/score_accounts.py
-cp <skill_dir>/template/README.md          <output_root>/README.md
-cp <skill_dir>/template/static/*           <output_root>/static/
-cp <skill_dir>/template/Dockerfile         <output_root>/Dockerfile
-cp <skill_dir>/template/.dockerignore      <output_root>/.dockerignore
-python3 <skill_dir>/template/_build/build_weights.py --raw <output_root>/_raw
-python3 <skill_dir>/template/_build/fit_weights.py --raw <output_root>/_raw
+mkdir -p {output_root}/static
+cp {skill_dir}/template/app.py             {output_root}/app.py
+cp {skill_dir}/template/score_sheet.py     {output_root}/score_sheet.py
+cp {skill_dir}/template/score_accounts.py  {output_root}/score_accounts.py
+cp {skill_dir}/template/README.md          {output_root}/README.md
+cp {skill_dir}/template/static/*           {output_root}/static/
+cp {skill_dir}/template/Dockerfile         {output_root}/Dockerfile
+cp {skill_dir}/template/.dockerignore      {output_root}/.dockerignore
+python3 {skill_dir}/template/_build/build_weights.py --raw {output_root}/_raw
+python3 {skill_dir}/template/_build/fit_weights.py --raw {output_root}/_raw
 ```
 
-→ `<output_root>/account-scoring-weights.json`. `build_weights.py` renders
+→ `{output_root}/account-scoring-weights.json`. `build_weights.py` renders
 the spec + audit into the live config with the **policy-default** weights;
 `fit_weights.py` then nudges those weights toward the gold set (see "Default
 weights + calibration" below) and rewrites the config in place. Surface the
@@ -1141,7 +1141,7 @@ demos you only run locally. The app's HTTP Basic Auth is **env-gated**: it
 activates only when `BASIC_AUTH_PASS` is set (a deploy secret), so
 `python3 app.py` stays open with no login locally.
 
-Write `<output_root>/.gitignore` via `Write`:
+Write `{output_root}/.gitignore` via `Write`:
 ```
 __pycache__/
 *.csv
@@ -1155,7 +1155,7 @@ Print this to the user. Don't try to run the server inside Claude Code —
 let the user start it in a terminal where it stays up.
 
 ```bash
-cd ./tmp/account_scoring/<company>
+cd ./tmp/account_scoring/{company}
 python3 app.py
 # open http://localhost:8001 in your browser
 ```
@@ -1208,12 +1208,12 @@ Mechanics (the script handles all of it):
   `--include-subsidiaries` is passed. **Recommend `--top 2000`** (or the user's
   working depth) — filtering the tail of 19K rows is wasted spend.
 - Keys (portable — assume nothing about the user's machine). Resolution
-  order: `--api-key` → `--key-cmd "<command>"` (stdout is the key; works with
+  order: `--api-key` → `--key-cmd "{command}"` (stdout is the key; works with
   any secret manager: `gcloud secrets versions access`, `op read`,
   `aws secretsmanager get-secret-value`, `pass show`) → the provider's
-  standard env var → `--env-file` → `~/.config/sumble/<provider>_api_key`.
+  standard env var → `--env-file` → `~/.config/sumble/{provider}_api_key`.
   **Default flow for users without a secret manager:** have them run
-  `python3 <skill_dir>/template/_build/filter_whitespace.py --provider <p>
+  `python3 {skill_dir}/template/_build/filter_whitespace.py --provider {p}
   --set-key` ONCE in their terminal — hidden input (getpass), saved chmod 600,
   found automatically on every later run. Never ask the user to paste a key
   into chat. If no key resolves, the script itself prints where to get one
@@ -1256,15 +1256,15 @@ Mechanics (the script handles all of it):
 
 ```bash
 # estimate, then run (example: OpenAI on the top 2,000 whitespace rows)
-python3 <skill_dir>/template/_build/filter_whitespace.py --dir <output_root> \
-  --provider openai --top 2000 --prompt-file <output_root>/_raw/ws_filter_prompt.txt \
+python3 {skill_dir}/template/_build/filter_whitespace.py --dir {output_root} \
+  --provider openai --top 2000 --prompt-file {output_root}/_raw/ws_filter_prompt.txt \
   --estimate-only
-python3 <skill_dir>/template/_build/filter_whitespace.py --dir <output_root> \
-  --provider openai --top 2000 --prompt-file <output_root>/_raw/ws_filter_prompt.txt --yes
+python3 {skill_dir}/template/_build/filter_whitespace.py --dir {output_root} \
+  --provider openai --top 2000 --prompt-file {output_root}/_raw/ws_filter_prompt.txt --yes
 
 # criteria mode (free): rules JSON of {column, op, value[, label]}
-python3 <skill_dir>/template/_build/filter_whitespace.py --dir <output_root> \
-  --mode criteria --rules <output_root>/_raw/ws_filter_rules.json
+python3 {skill_dir}/template/_build/filter_whitespace.py --dir {output_root} \
+  --mode criteria --rules {output_root}/_raw/ws_filter_rules.json
 ```
 
 Quality guidance when the user asks which provider: evidence beats model — the

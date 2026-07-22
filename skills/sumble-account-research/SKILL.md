@@ -125,7 +125,7 @@ and collect enablement alongside.
 attachment / Project knowledge), load it, and **skip the enablement ask and the
 `GetMyCompanyProfile` call**. Play it back to confirm:
 
-> Here's the profile I have: <2–4 line synthesis>. Still correct, or has anything changed?
+> Here's the profile I have: {2–4 line synthesis}. Still correct, or has anything changed?
 
 Update and rewrite on change. Hold the profile for the session — it's the lens for
 Step 4 and every draft in Step 5.
@@ -183,7 +183,7 @@ each person (past meetings/call recordings, email threads, CRM activity, marketi
 touches) plus the account-level history, so the brief can say "last time you spoke,
 X" per attendee, not just per account.
 
-**5b. External context — rebuild the overview** (`sumble.com/orgs/<slug>/overview`;
+**5b. External context — rebuild the overview** (`sumble.com/orgs/{slug}/overview`;
 full queries in `references/overview-rebuild.md`):
 
 | Overview card | How to reconstruct |
@@ -279,7 +279,7 @@ it (slower); later runs load it, play back a synthesis to confirm, and rewrite o
 
 | Surface | Where to save | Persists? |
 |---|---|---|
-| **Companion profile skill** (any surface) | a `sumble-profile-<company>` skill uploaded once | ✅ best — account-scoped, works in chat + Cowork + Claude Code |
+| **Companion profile skill** (any surface) | a `sumble-profile-{company}` skill uploaded once | ✅ best — account-scoped, works in chat + Cowork + Claude Code |
 | **Claude Code** | `./sumble-profile.md` in the working dir | ✅ real disk |
 | **Cowork + connected folder** | `sumble-profile.md` there | ✅ prompt the user to connect a folder if needed |
 | **Cowork (default sandbox)** | downloadable outputs folder | ❌ keep & re-supply, connect a folder, or use the companion skill |

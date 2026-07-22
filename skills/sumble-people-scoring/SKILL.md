@@ -1,6 +1,6 @@
 ---
 name: sumble-people-scoring
-description: "Build a people-scoring web app powered by Sumble data and optional first-party data. Interviews the user about their ICP (job functions + skills via GetMyCompanyProfile), then builds a SMALL calibration sample from ~5 user-named companies via the unified v6 REST endpoints (POST /v6/people) so the app is ready in minutes. Optional gold set (closed-won opportunity contacts) drives an Evaluation tab and a conservative regularized weight fit. Generates a self-contained, zero-dependency Python + HTML/JS app at people_scoring/<company>/ with real-time slider re-weighting, a score.csv superset sheet, plus a production score_leads.py that applies the calibrated weights to an entire enriched CRM."
+description: "Build a people-scoring web app powered by Sumble data and optional first-party data. Interviews the user about their ICP (job functions + skills via GetMyCompanyProfile), then builds a SMALL calibration sample from ~5 user-named companies via the unified v6 REST endpoints (POST /v6/people) so the app is ready in minutes. Optional gold set (closed-won opportunity contacts) drives an Evaluation tab and a conservative regularized weight fit. Generates a self-contained, zero-dependency Python + HTML/JS app at people_scoring/{company}/ with real-time slider re-weighting, a score.csv superset sheet, plus a production score_leads.py that applies the calibrated weights to an entire enriched CRM."
 ---
 
 # People Scoring
@@ -74,7 +74,7 @@ final weights.
   key **without echoing** (so it never lands in the chat transcript or shell
   history), and saves it to `~/.config/sumble/api_key` (chmod 0600):
   ```bash
-  ! python <skill_dir>/template/_build/set_api_key.py
+  ! python {skill_dir}/template/_build/set_api_key.py
   ```
   Use the hidden-input helper as the default — **don't ask the user to paste the
   key into the chat** (it would be logged). The `_build/` scripts then find it
@@ -105,23 +105,23 @@ everywhere. Follow these rules exactly:
   command substitution (`$(…)` or backticks).
 - **Use absolute paths, never `cd`.** Every `_build/*` script takes its
   directory as an argument, so run e.g.
-  `python3 <skill_dir>/template/_build/fetch_people.py --raw <output_root>/_raw`
+  `python3 {skill_dir}/template/_build/fetch_people.py --raw {output_root}/_raw`
   from anywhere.
 - **Run the pipeline in the foreground.** The scripts stream progress to stdout
   and finish in minutes. NEVER background a step and poll it.
 - **No inline Python, no heredocs.** Any multi-line Python, JSON shaping,
-  counting, or CSV writing → write a `.py` to `<output_root>/_raw/` (with your
-  agent's file tool) and run it as a single `python3 <abs>.py`. Never
+  counting, or CSV writing → write a `.py` to `{output_root}/_raw/` (with your
+  agent's file tool) and run it as a single `python3 {abs}.py`. Never
   `python3 -c "…{…}…"` (the `{`+`"` trips the approval prompt).
 - **Inspect with your agent's file tools, not the shell.** Use the native
   file-read / glob / grep tools — never `cat` / `tail` / `head` / `ls` / `wc` /
   `grep`.
 - **No subagents needed.** The `_build/` scripts replaced the old multi-batch
-  MCP work that needed them. Stage everything under `<output_root>/_raw/` —
+  MCP work that needed them. Stage everything under `{output_root}/_raw/` —
   the old `$TMPDIR` staging rule is obsolete.
 
-The only shell this skill needs is `mkdir -p <abs>`, `cp <abs> <abs>`, and
-`python3 <abs>/script.py [args]` — each as one standalone command.
+The only shell this skill needs is `mkdir -p {abs}`, `cp {abs} {abs}`, and
+`python3 {abs}/script.py [args]` — each as one standalone command.
 
 **Running a command in the user's own terminal.** A couple of steps (the
 API-key helper, launching `app.py`) are best run by the user so they're
@@ -132,7 +132,7 @@ paste the same command (without the `!`) into a terminal themselves.
 ## Output
 
 ```
-people_scoring/<company>/
+people_scoring/{company}/
   app.py                      stdlib http.server (copied from template/, unchanged)
   score_sheet.py              GENERATOR SCRIPT — regenerates score.csv from
                               data.csv + the live weights on Save/startup
@@ -183,7 +183,7 @@ seniority_frac  = job_level_rank / max_job_level_rank
 jf_score        = jf_range[jf].min + (jf_range[jf].max - jf_range[jf].min) * seniority_frac
 seniority_score = seniority_frac
 skill_score     = min(skill_count, skill_cap) / skill_cap   # default cap = 5
-1p_score        = <signal>_norm   # pre-normalised at merge time
+1p_score        = {signal}_norm   # pre-normalised at merge time
 total           = Σ (weight_pct/100) * factor_score
 ```
 
@@ -232,7 +232,7 @@ Follow this script exactly. **One question, not three** for the ICP step.
 
 1. **Company name + URL.** Pre-fill if you recognise it; ask to confirm. Also
    ask where the app should be stored — default
-   `./tmp/people_scoring/<company>/`.
+   `./tmp/people_scoring/{company}/`.
 
 2. **Confirm ICP via `GetMyCompanyProfile`.** Call it on the URL. If it
    succeeds, do **not** trim the returned job functions or technologies.
@@ -242,7 +242,7 @@ Follow this script exactly. **One question, not three** for the ICP step.
    block and ask one yes/edit question:
 
    ```
-   Proposed ICP for <company>:
+   Proposed ICP for {company}:
      • Job functions: Sales, Revenue Operations, Marketing
      • Skills: clay, common-room, hg-insights, zoominfo
 
@@ -335,7 +335,7 @@ Show a single summary back before running anything that costs credits.
 ONE call to the lookup helper (v6 lookup endpoints; needs `SUMBLE_API_KEY`):
 
 ```bash
-python3 <skill_dir>/template/_build/lookup.py --skills clay,common-room,zoominfo --titles "Sales,Revenue Operations,Marketing"
+python3 {skill_dir}/template/_build/lookup.py --skills clay,common-room,zoominfo --titles "Sales,Revenue Operations,Marketing"
 ```
 
 It prints `{skills, job_functions}`, each item `{input, slug, name}`. Job
@@ -360,7 +360,7 @@ Write **`_raw/spec.json`** (schema: `template/_build/README.md`): `path`,
 #### 2c — Estimate, then fetch
 
 ```bash
-python3 <skill_dir>/template/_build/fetch_people.py --raw <output_root>/_raw --estimate-only
+python3 {skill_dir}/template/_build/fetch_people.py --raw {output_root}/_raw --estimate-only
 ```
 
 This matches the calibration companies (confirm the org matches with the
@@ -370,7 +370,7 @@ full attribute set** — plus 20 extra per email-only contact row. Surface the
 estimate and get a go-ahead, then:
 
 ```bash
-python3 <skill_dir>/template/_build/fetch_people.py --raw <output_root>/_raw
+python3 {skill_dir}/template/_build/fetch_people.py --raw {output_root}/_raw
 ```
 
 Add `--resolve-emails` only after the user approves the email-resolution
@@ -386,7 +386,7 @@ and/or `linkedin_url` + one raw column per signal) — `merge_data.py` computes
 the p99 log-saturation norms. Then:
 
 ```bash
-python3 <skill_dir>/template/_build/merge_data.py --raw <output_root>/_raw
+python3 {skill_dir}/template/_build/merge_data.py --raw {output_root}/_raw
 ```
 
 Matched skills need no extra step: each response row carries the
@@ -404,19 +404,19 @@ one-line summary: `5 companies, 1,240 people, 312 CRM contacts, 38 gold`.
 ### Stage 3 — Generate the app
 
 ```bash
-mkdir -p <output_root>/static
-cp <skill_dir>/template/app.py          <output_root>/app.py
-cp <skill_dir>/template/score_sheet.py  <output_root>/score_sheet.py
-cp <skill_dir>/template/score_leads.py  <output_root>/score_leads.py
-cp <skill_dir>/template/README.md       <output_root>/README.md
-cp <skill_dir>/template/SCHEMA.md       <output_root>/SCHEMA.md
-cp <skill_dir>/template/.gitignore      <output_root>/.gitignore
-cp <skill_dir>/template/static/app.js     <output_root>/static/app.js
-cp <skill_dir>/template/static/index.html <output_root>/static/index.html
-cp <skill_dir>/template/static/style.css  <output_root>/static/style.css
-cp <skill_dir>/template/static/favicon.png <output_root>/static/favicon.png
-python3 <skill_dir>/template/_build/build_config.py --raw <output_root>/_raw
-python3 <skill_dir>/template/_build/fit_weights.py --raw <output_root>/_raw
+mkdir -p {output_root}/static
+cp {skill_dir}/template/app.py          {output_root}/app.py
+cp {skill_dir}/template/score_sheet.py  {output_root}/score_sheet.py
+cp {skill_dir}/template/score_leads.py  {output_root}/score_leads.py
+cp {skill_dir}/template/README.md       {output_root}/README.md
+cp {skill_dir}/template/SCHEMA.md       {output_root}/SCHEMA.md
+cp {skill_dir}/template/.gitignore      {output_root}/.gitignore
+cp {skill_dir}/template/static/app.js     {output_root}/static/app.js
+cp {skill_dir}/template/static/index.html {output_root}/static/index.html
+cp {skill_dir}/template/static/style.css  {output_root}/static/style.css
+cp {skill_dir}/template/static/favicon.png {output_root}/static/favicon.png
+python3 {skill_dir}/template/_build/build_config.py --raw {output_root}/_raw
+python3 {skill_dir}/template/_build/fit_weights.py --raw {output_root}/_raw
 ```
 
 `build_config.py` renders `spec.json` into `config.json` with the
@@ -445,7 +445,7 @@ Print to the user (do **not** try to launch the server inside the agent —
 let the user start it in a real terminal):
 
 ```bash
-cd ./tmp/people_scoring/<company>
+cd ./tmp/people_scoring/{company}
 python app.py 8002
 # open http://localhost:8002 — tune the sliders, then click Save
 ```
@@ -467,7 +467,7 @@ Once weights are calibrated, score the **entire** lead/CRM universe:
 
 1. **Enrich the full list** with the same pipeline, no 5-company
    restriction: write the full `_raw/contacts.csv` (all CRM people), run
-   `fetch_people.py --raw <prod_raw> --lean` (6 credits/person instead of 9;
+   `fetch_people.py --raw {prod_raw} --lean` (6 credits/person instead of 9;
    match-mode batches of 1000 handle tens of thousands of rows; skills come
    back on every row via the `technologies` attribute), then
    `merge_data.py` → `leads_enriched.csv` (rename/copy the produced

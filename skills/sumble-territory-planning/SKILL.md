@@ -1,6 +1,6 @@
 ---
 name: sumble-territory-planning
-description: "Companion to sumble-account-scoring: plan and rebalance sales territories. Interviews the user about their segments (default Enterprise + Commercial) and whether the segment line is a hard rule or should be calibrated from their data, pulls territory ownership from the CRM, and pulls per-rep×account activity (calendar meetings, Gong/Fireflies/Granola calls, Salesforce email) from whatever MCPs are connected. Generates a self-contained, zero-dependency Python + HTML/JS app at territory_planning/<company>/ with per-segment book-balance bars, an aggregate rep view and a granular account view, highlights for accounts that are not being worked / in the wrong segment / unallocated / double-allocated / strong-but-idle, and a suggest→accept/reject→export flow that writes an actions.csv of approved owner changes."
+description: "Companion to sumble-account-scoring: plan and rebalance sales territories. Interviews the user about their segments (default Enterprise + Commercial) and whether the segment line is a hard rule or should be calibrated from their data, pulls territory ownership from the CRM, and pulls per-rep×account activity (calendar meetings, Gong/Fireflies/Granola calls, Salesforce email) from whatever MCPs are connected. Generates a self-contained, zero-dependency Python + HTML/JS app at territory_planning/{company}/ with per-segment book-balance bars, an aggregate rep view and a granular account view, highlights for accounts that are not being worked / in the wrong segment / unallocated / double-allocated / strong-but-idle, and a suggest→accept/reject→export flow that writes an actions.csv of approved owner changes."
 ---
 
 # Territory Planning
@@ -37,7 +37,7 @@ does not replace it.
 - **An account-scoring run (preferred), or a Sumble API key.** Account strength
   comes from one of two places, decided at Q1:
   - **Path A — an existing `/sumble-account-scoring` run.** Read `score.csv`
-    from `account_scoring/<company>/`. It already carries `org_id`, `score`,
+    from `account_scoring/{company}/`. It already carries `org_id`, `score`,
     `account_category`, `employee_count_int`, per-persona headcounts and
     domains. Nothing is fetched, no credits are spent. **Always prefer this** —
     a score tuned to the user's ICP is a far better measure of book value than a
@@ -57,10 +57,10 @@ does not replace it.
   **https://sumble.com/account (Account → API key)** and have them run the
   helper, which reads the key **without echoing** and saves it chmod 0600:
   ```bash
-  ! python3 <skill_dir>/template/_build/set_api_key.py
+  ! python3 {skill_dir}/template/_build/set_api_key.py
   ```
   **Always `python3`, never bare `python`.** No Python at all?
-  `! sh <skill_dir>/template/_build/set_api_key.sh` is an identical POSIX-shell
+  `! sh {skill_dir}/template/_build/set_api_key.sh` is an identical POSIX-shell
   twin. **Never ask the user to paste a key into chat** — it would be logged.
   Path A needs no key at all unless the boundary metric requires a supplemental
   job-function pull.
@@ -92,19 +92,19 @@ everywhere. Follow these rules exactly:
   command substitution (`$(…)` or backticks).
 - **Use absolute paths, never `cd`.** Every `_build/*` script takes its directory
   as an argument, so run e.g.
-  `python3 <skill_dir>/template/_build/merge_territory.py --raw <output_root>/_raw`
+  `python3 {skill_dir}/template/_build/merge_territory.py --raw {output_root}/_raw`
   from anywhere.
 - **Run the pipeline in the foreground.** The scripts stream progress to stdout
   and finish in seconds (minutes only for a Path B fetch). NEVER background a
   step and poll it — every poll is a fresh approval prompt.
 - **No inline Python, no heredocs.** Any multi-line Python, JSON shaping, or
-  counting → write a `.py` to `<output_root>/_raw/` with your agent's file tool
-  and run it as a single `python3 <abs>.py`. Never `python3 -c "…{…}…"`.
+  counting → write a `.py` to `{output_root}/_raw/` with your agent's file tool
+  and run it as a single `python3 {abs}.py`. Never `python3 -c "…{…}…"`.
 - **Inspect with your agent's file tools, not the shell.** Use the native
   file-read / glob / grep tools — never `cat` / `tail` / `head` / `ls` / `wc`.
 
-The only shell this skill needs is `mkdir -p <abs>`, `cp <abs> <abs>`, and
-`python3 <abs>/script.py [args]` — each as one standalone command.
+The only shell this skill needs is `mkdir -p {abs}`, `cp {abs} {abs}`, and
+`python3 {abs}/script.py [args]` — each as one standalone command.
 
 **Running a command in the user's own terminal.** The API-key helper and
 `app.py` are best run by the user so they're interactive / stay up. In **Claude
@@ -114,7 +114,7 @@ same command (without the `!`) into a terminal.
 ## Output
 
 ```
-territory_planning/<company>/
+territory_planning/{company}/
   app.py                  stdlib http.server (copied from template/, unchanged — no deps)
   territory_lib.py        shared helpers, stdlib-only (copied from template/_build/)
   territory-plan.json     THE config — segments, boundary rule, rep roster,
@@ -251,10 +251,10 @@ re-print the whole updated list, not a diff.
 **1. Company, and where the account strength comes from.**
 
 Ask the company name + URL (prefill if you know it, ask them to confirm), and
-where to store the output (default `./tmp/territory_planning/<company>`).
+where to store the output (default `./tmp/territory_planning/{company}`).
 
 Then **look for an existing account-scoring run** before asking anything:
-check `./tmp/account_scoring/<company>/score.csv` with your file tools. Report
+check `./tmp/account_scoring/{company}/score.csv` with your file tools. Report
 what you found in one line, e.g. *"Found your account-scoring run (4,812 scored
 accounts) — I'll use that tuned score as account strength."* If it's somewhere
 else, ask for the path.
@@ -288,8 +288,8 @@ should I calibrate one from your data?"*
 **3a — They have a hard line.** Ask for it verbatim and capture the metric plus
 the threshold(s), e.g. "Enterprise is 1,000+ employees". The metric may be:
 - total employee count → `"metric": "total_employees"`
-- headcount in a job function → `"metric": "jf_people:<Function Name>"`
-- a column they supply by CSV → `"metric": "custom:<column>"`
+- headcount in a job function → `"metric": "jf_people:{Function Name}"`
+- a column they supply by CSV → `"metric": "custom:{column}"`
 
 If they name something Sumble cannot supply (revenue, ARR, a named account
 list), say so and offer: supply it as a CSV column, or fall back to employee
@@ -314,12 +314,12 @@ count. Do not silently substitute.
    > For **Datadog** (sells to engineering) suggest **`Engineer`**. Not "Account
    > Executive", not "DevOps Engineer".
 
-   Resolve the display name with `lookup.py --titles "<name>"` before using it —
+   Resolve the display name with `lookup.py --titles "{name}"` before using it —
    the endpoint takes the canonical **display name**, and a wrong one 400s with
    a "did you mean" list.
 
    On Path A, if the scoring run never fetched that function, pull just that one
-   metric with `fetch_light.py --from-score … --only-jf "<Name>"`.
+   metric with `fetch_light.py --from-score … --only-jf "{Name}"`.
 
 Then run `calibrate_split.py` and present the result. It picks its own method:
 **supervised** (two segments and the reps' segments are already known) sweeps
@@ -377,7 +377,7 @@ Set `is_rep=0` for each of those. Loop on the user's corrections until accepted.
 
 **Collect rep emails — they are the join key for all activity.** Take them from
 CRM user records where available; otherwise ask; as a last resort propose the
-obvious pattern (`first.last@<company-domain>`) and **confirm it explicitly**. A
+obvious pattern (`first.last@{company-domain}`) and **confirm it explicitly**. A
 rep with no email will have every account read "not worked", so `build_plan.py`
 warns about it — surface that warning to the user rather than letting the
 coverage numbers lie.
@@ -435,7 +435,7 @@ State the two things plainly, in the message:
 
 ### Stage 2 — Build the data
 
-Write these into `<output_root>/_raw/` with your file tools:
+Write these into `{output_root}/_raw/` with your file tools:
 
 - **`spec.json`** — everything confirmed above:
   ```json
@@ -454,7 +454,7 @@ Write these into `<output_root>/_raw/` with your file tools:
   ```
 - **`ownership.csv`** — `crm_account_id,name,domain,owner,owner_email,owner_is_queue,is_customer`
 - **`reps.csv`** — `name,email,segment,is_rep,capacity`
-- **`activity/<source>.csv`** — one file per source:
+- **`activity/{source}.csv`** — one file per source:
   `source,rep_email,account_domain,kind,ts` (`kind` ∈ `meeting|call|email_out|email_in`)
 - **`accounts.csv`** (Path B only) — `crm_account_id,name,domain`
 - **`pipeline.csv`** (optional) — `domain,pipeline_value`
@@ -463,15 +463,15 @@ Then run each as ONE command with absolute paths — no `cd`, no chaining:
 
 ```bash
 # Path B only — resolve accounts + pull sumble_score / employee_count
-python3 <skill_dir>/template/_build/fetch_light.py --raw <output_root>/_raw
+python3 {skill_dir}/template/_build/fetch_light.py --raw {output_root}/_raw
 # Path A supplement — only when the boundary needs a job function the scoring run lacks
-python3 <skill_dir>/template/_build/fetch_light.py --raw <output_root>/_raw --only-jf "Engineer" --from-score <path>/score.csv
+python3 {skill_dir}/template/_build/fetch_light.py --raw {output_root}/_raw --only-jf "Engineer" --from-score {path}/score.csv
 # Boundary proposal (Q3b) — prints JSON, writes nothing
-python3 <skill_dir>/template/_build/calibrate_split.py --raw <output_root>/_raw
+python3 {skill_dir}/template/_build/calibrate_split.py --raw {output_root}/_raw
 # After the boundary + roster are confirmed:
-python3 <skill_dir>/template/_build/build_plan.py --raw <output_root>/_raw
-python3 <skill_dir>/template/_build/merge_territory.py --raw <output_root>/_raw
-python3 <skill_dir>/template/_build/suggest_moves.py --dir <output_root>
+python3 {skill_dir}/template/_build/build_plan.py --raw {output_root}/_raw
+python3 {skill_dir}/template/_build/merge_territory.py --raw {output_root}/_raw
+python3 {skill_dir}/template/_build/suggest_moves.py --dir {output_root}
 ```
 
 **Surface the merge summary to the user** — allocated / unallocated /
@@ -491,17 +491,17 @@ running a large pull.
 ### Stage 3 — Generate the app
 
 ```bash
-mkdir -p <output_root>/static
-cp <skill_dir>/template/app.py                    <output_root>/app.py
-cp <skill_dir>/template/_build/territory_lib.py   <output_root>/territory_lib.py
-cp <skill_dir>/template/README.md                 <output_root>/README.md
-cp <skill_dir>/template/Dockerfile                <output_root>/Dockerfile
-cp <skill_dir>/template/.dockerignore             <output_root>/.dockerignore
-cp <skill_dir>/template/static/index.html         <output_root>/static/index.html
-cp <skill_dir>/template/static/app.js             <output_root>/static/app.js
-cp <skill_dir>/template/static/style.css          <output_root>/static/style.css
-cp <skill_dir>/template/static/logo.svg           <output_root>/static/logo.svg
-cp <skill_dir>/template/static/favicon.svg        <output_root>/static/favicon.svg
+mkdir -p {output_root}/static
+cp {skill_dir}/template/app.py                    {output_root}/app.py
+cp {skill_dir}/template/_build/territory_lib.py   {output_root}/territory_lib.py
+cp {skill_dir}/template/README.md                 {output_root}/README.md
+cp {skill_dir}/template/Dockerfile                {output_root}/Dockerfile
+cp {skill_dir}/template/.dockerignore             {output_root}/.dockerignore
+cp {skill_dir}/template/static/index.html         {output_root}/static/index.html
+cp {skill_dir}/template/static/app.js             {output_root}/static/app.js
+cp {skill_dir}/template/static/style.css          {output_root}/static/style.css
+cp {skill_dir}/template/static/logo.svg           {output_root}/static/logo.svg
+cp {skill_dir}/template/static/favicon.svg        {output_root}/static/favicon.svg
 ```
 
 `territory_lib.py` sits beside `app.py` as a sibling module (it is stdlib-only),
@@ -511,7 +511,7 @@ steps; they're inert for a local run. HTTP Basic Auth is **env-gated** — it
 activates only when `BASIC_AUTH_PASS` is set, so `python3 app.py` stays open
 locally.
 
-Write `<output_root>/.gitignore` via your file tool:
+Write `{output_root}/.gitignore` via your file tool:
 ```
 __pycache__/
 *.csv
@@ -530,7 +530,7 @@ Print this. Don't try to run the server yourself — let the user start it in a
 terminal where it stays up.
 
 ```bash
-cd ./tmp/territory_planning/<company>
+cd ./tmp/territory_planning/{company}
 python3 app.py
 # open http://localhost:8002 in your browser
 ```
