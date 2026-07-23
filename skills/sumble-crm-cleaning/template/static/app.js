@@ -179,6 +179,7 @@ function renderSummary() {
     )
     .join("");
   document.querySelectorAll(".tab").forEach((btn) => {
+    if (btn.dataset.tab === "export") return; // the review tab carries no count
     const n = tabItems(btn.dataset.tab).length;
     btn.innerHTML = `${btn.textContent.replace(/\d+$/, "")}` +
       `<span class="count">${n}</span>`;
@@ -283,6 +284,15 @@ function bindToolbar() {
 }
 
 function render() {
+  // The review tab is a different beast — an inventory of the changes to export,
+  // not a finding queue — so the finding filters don't apply to it.
+  const isExport = state.tab === "export";
+  const toolbar = $(".toolbar");
+  if (toolbar) toolbar.style.display = isExport ? "none" : "";
+  if (isExport) {
+    renderExport();
+    return;
+  }
   const items = subtabItems(state.tab, activeSubtab(state.tab)).filter((item) => {
     if (state.confidence.size && !state.confidence.has(item.confidence)) return false;
     if (!item.unmatched && state.status.size && !state.status.has(decisionOf(item.id)))
@@ -297,6 +307,102 @@ function render() {
   }
   main.innerHTML = items.map(renderFinding).join("");
   bindFindingEvents(main);
+}
+
+/* ---------- review / export inventory ---------- */
+
+// How each action row reads in the inventory. `detail(row)` renders the
+// target/new-parent for that action type.
+const ACTION_META = {
+  merge: {
+    label: "Merge",
+    cls: "act-merge",
+    detail: (a) => `→ into <b>${esc(a.target_account_name)}</b>` +
+      `<span class="dim"> ${esc(a.target_account_id)}</span>`,
+  },
+  delete: {
+    label: "Delete",
+    cls: "act-delete",
+    detail: () => `<span class="dim">remove this record</span>`,
+  },
+  set_parent: {
+    label: "Set parent",
+    cls: "act-parent",
+    detail: (a) => `→ parent <b>${esc(a.target_account_name)}</b>` +
+      `<span class="dim"> ${esc(a.target_account_id)}</span>`,
+  },
+  create_parent_and_link: {
+    label: "Create parent + link",
+    cls: "act-create",
+    detail: (a) => `→ new parent <b>${esc(a.suggested_new_account_name)}</b>` +
+      (a.suggested_new_account_domain
+        ? `<span class="dim"> (${esc(a.suggested_new_account_domain)})</span>` : ""),
+  },
+};
+
+/* Inventory every CRM change the accepted findings imply — the exact rows
+   actions.csv will contain — so the user can see and sanity-check the whole
+   plan in one place before exporting. Nothing here writes to the CRM. */
+async function renderExport() {
+  const main = $("#findings");
+  main.innerHTML = `<div class="empty">Gathering changes…</div>`;
+  let actions = [];
+  try {
+    const resp = await fetch("/api/actions");
+    actions = (await resp.json()).actions || [];
+  } catch (e) {
+    main.innerHTML = `<div class="empty">Could not load changes: ${esc(String(e))}</div>`;
+    return;
+  }
+  if (state.tab !== "export") return; // user switched away while fetching
+
+  const byType = {};
+  actions.forEach((a) => { byType[a.action] = (byType[a.action] || 0) + 1; });
+  const chips = Object.entries(byType)
+    .map(([t, n]) => `<span class="act-tag ${ACTION_META[t]?.cls || ""}">` +
+      `${esc(ACTION_META[t]?.label || t)} <b>${n}</b></span>`)
+    .join("");
+
+  const head =
+    `<div class="export-head">` +
+    `<div><h2 class="export-title">${actions.length} CRM change` +
+    `${actions.length === 1 ? "" : "s"} to make</h2>` +
+    `<p class="dim">One row per change implied by the findings you accepted — ` +
+    `the exact contents of actions.csv. This app never writes to your CRM; the ` +
+    `export is the hand-off.</p>` +
+    (chips ? `<div class="act-tags">${chips}</div>` : "") + `</div>` +
+    `<button class="btn-download" id="export-btn-2">Download actions.csv</button>` +
+    `</div>`;
+
+  if (!actions.length) {
+    main.innerHTML = head +
+      `<div class="empty">No changes yet — accept a duplicate resolution or a ` +
+      `hierarchy fix on the other tabs and they'll appear here.</div>`;
+    $("#export-btn-2").addEventListener("click", () => { window.location.href = "/api/export"; });
+    return;
+  }
+
+  const order = ["merge", "delete", "set_parent", "create_parent_and_link"];
+  actions.sort((a, b) =>
+    (order.indexOf(a.action) - order.indexOf(b.action)) ||
+    String(a.account_name).localeCompare(String(b.account_name)));
+
+  const rows = actions.map((a) => {
+    const m = ACTION_META[a.action] || { label: a.action, cls: "", detail: () => "" };
+    return `<tr>` +
+      `<td><span class="act-tag ${m.cls}">${esc(m.label)}</span></td>` +
+      `<td><b>${esc(a.account_name)}</b><div class="dim">${esc(a.account_id)}</div></td>` +
+      `<td>${m.detail(a)}</td>` +
+      `<td class="dim">${esc(a.confidence || "")}</td>` +
+      `<td class="dim">${esc(a.note || "")}</td>` +
+      `</tr>`;
+  }).join("");
+
+  main.innerHTML = head +
+    `<div class="export-table-wrap"><table class="acct-table export-table">` +
+    `<tr><th>Change</th><th>CRM account</th><th>Detail</th><th>Confidence</th>` +
+    `<th>Note</th></tr>${rows}</table></div>`;
+  $("#export-btn-2").addEventListener("click", () => { window.location.href = "/api/export"; });
 }
 
 /* One line under the finding head listing every DISTINCT Sumble org the

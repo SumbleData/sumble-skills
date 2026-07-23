@@ -415,3 +415,38 @@ main { padding: 4px 22px 60px; max-width: 1100px; }
   margin-top: 3px;
   color: var(--accent);
 }
+
+/* ---------- review / export inventory tab ---------- */
+.tab.tab-review { margin-left: auto; }
+
+.export-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 4px 0 14px;
+}
+.export-title { margin: 0 0 4px; font-size: 18px; }
+.export-head p { margin: 0 0 8px; max-width: 60ch; }
+
+.act-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.act-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+.act-tag.act-merge  { background: var(--accent-soft); color: var(--accent); }
+.act-tag.act-delete { background: var(--danger-soft); color: var(--danger); }
+.act-tag.act-parent { background: var(--warn-soft);   color: var(--warn); }
+.act-tag.act-create { background: var(--info-soft);   color: var(--info); }
+
+.export-table-wrap { overflow-x: auto; }
+.export-table th { white-space: nowrap; }
+.export-table td { vertical-align: top; }

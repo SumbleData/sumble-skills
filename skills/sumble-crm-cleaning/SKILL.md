@@ -36,6 +36,13 @@ the CRM admin or a dedupe job. For a duplicate cluster the reviewer picks one
 record as the primary and, per other record, chooses **merge into primary**
 (default) or **delete**.
 
+A **Review changes** tab inventories every one of those changes in one table —
+the exact rows `actions.csv` will contain, grouped by action type with a running
+count — so the reviewer sees and sanity-checks the whole plan before download,
+rather than exporting blind. It's fed by `GET /api/actions` (the same
+`build_actions()` the CSV uses, so the preview can never drift from the file),
+and it still writes nothing to the CRM.
+
 Follow the stages closely — input (interview) and output should be consistent
 between runs, more deterministic than most skills. All detection logic is
 policy constants in `template/_build/` (same inputs → byte-identical
@@ -113,7 +120,7 @@ crm_cleaning/{company}/
                      (written by the app on every click)
   actions.csv        the change list for the CRM admin (accepted findings only;
                      written by the app's Export button)
-  static/            UI: tabs, filter chips, per-finding cards
+  static/            UI: tabs, filter chips, per-finding cards, review inventory
   README.md
   _raw/              accounts.csv, config.json, responses/, fetch_index.json,
                      parent_orgs.json
@@ -324,10 +331,11 @@ so the reviewer can work the easy buckets first and reserve the owner conflicts
 for a judgment call. If the run set `include_pe_parents: true`, mention the
 **PE roll-ups** sub-tab under Parents-not-in-CRM: PE-firm parents kept out of
 the conventional roll-ups list so portfolio roll-ups get their own review
-queue. Then
-**Export actions.csv** to get the change list — `merge` / `delete` /
-`set_parent` / `create_parent_and_link` rows keyed by CRM account id, ready
-for the CRM admin, a Data Loader job, or a follow-up agent run. Mention the
+queue. Then open the **Review changes** tab to see every approved change in one
+table before exporting, and hit **Download actions.csv** there (or the header
+button) to get the change list — `merge` / `delete` / `set_parent` /
+`create_parent_and_link` rows keyed by CRM account id, ready for the CRM admin, a
+Data Loader job, or a follow-up agent run. Mention the
 **Unmatched** tab too: accounts Sumble couldn't match are often shells, typos,
 or defunct entities — worth a skim while cleaning.
 

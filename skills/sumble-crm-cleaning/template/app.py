@@ -173,6 +173,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(
                     {"findings": self.findings, "decisions": load_decisions()}
                 )
+        if self.path == "/api/actions":
+            # The exact rows actions.csv will contain, as JSON — so the app can
+            # inventory every approved change in a review tab before download.
+            with _lock:
+                return self._json(
+                    {"actions": build_actions(self.findings, load_decisions())}
+                )
         if self.path == "/api/export":
             with _lock:
                 csv_text = actions_csv(self.findings, load_decisions())
@@ -180,9 +187,7 @@ class Handler(SimpleHTTPRequestHandler):
             body = csv_text.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/csv")
-            self.send_header(
-                "Content-Disposition", "attachment; filename=actions.csv"
-            )
+            self.send_header("Content-Disposition", "attachment; filename=actions.csv")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
