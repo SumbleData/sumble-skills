@@ -67,13 +67,28 @@ Order strongest-first; each card maps one Step 5b signal to one play.
   competitor / displacement tech, or postings-only (not confirmed adopted). Append counts
   (`Splunk 42/81`) only from a real `RunSqlQuery` pass — never invent them.
 - **The call** (`.call-line`) — **one quoted sentence in the seller's voice**: what the
-  rep *says to the prospect*. **Never Sumble vocabulary** — no "used/mentioned", "N
-  postings", "Sumble sees", no raw counts. Say what a rep says ("you're running Splunk at
-  real scale — what are you paying that you shouldn't be?"). Counts stay in the Signal box
-  and Stack.
+  rep *says to the prospect*, and it **names the product**. The rep is selling, not running a
+  neutral discovery script; a card that never says what they sell hands them evidence with no
+  bridge to a deal. Three rules:
+  - **Open on their situation, land on the product.** Their evidence earns the sentence; the
+    product is the answer to it, not the greeting. "You're running Splunk at real scale, and
+    paying for every gigabyte you index — that's what our tiered storage is for" works;
+    "Have you considered our tiered storage?" does not. Same sentence, different order,
+    completely different call.
+  - **Name the specific product or module, not the company.** Add a **reference customer with a
+    concrete outcome** as a trailing `.proof` span when you have one (pull them from
+    `GetMyCompanyProfile` → `company_reference_customers`); it belongs to the rep, so keep it to
+    one clause.
+  - **The product must match the card's `sig-badge` play**, or the badge is decoration and the
+    play mapping is wrong — fix one or the other.
+
+  **Never Sumble vocabulary** — no "used/mentioned", "N postings", "Sumble sees", no raw counts.
+  The prospect has never heard of Sumble. Translate the evidence into seller language ("you're
+  running Splunk at real scale"); counts stay in the Signal box and Stack.
 - **What to test** (`.detail-col p`) — the discovery question as the rep's curiosity
-  ("how's the Splunk renewal going?"), not a metric. Bold the key qualifier. Natural
-  sentences, no "**Label:** sentence" bullets.
+  ("how's the Splunk renewal going?"), not a metric, and **not a second pitch** — the call
+  already named the product, so this block goes back to listening. Bold the key qualifier.
+  Natural sentences, no "**Label:** sentence" bullets.
 - **Sources** — `Sumble · {{ACCOUNT}} profile` link plus any web sources.
 
 ## Buying group + the reporting fan-out
