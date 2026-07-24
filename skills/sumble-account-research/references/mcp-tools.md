@@ -1,7 +1,7 @@
 # Sumble MCP tools (costs, DSL, guardrails)
 
 Source of truth for tool names, costs, filters. (Full version: docs.sumble.com/api/mcp.)
-Give every `reason: str` a specific value ("Finding data eng leaders at Stripe"),
+Give every `reason: str` a specific value ("Finding data eng leaders at <account>"),
 not a placeholder.
 
 **Free:** `GetMyCompanyProfile` (ICP: sales plays, key vs other-tier tech / functions

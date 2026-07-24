@@ -1,6 +1,6 @@
 ---
 name: sumble-account-research
-description: "Guide a seller through researching and prospecting accounts on the Sumble MCP. Asks up front whether they're working a specific account or brainstorming, and which deliverable — outreach sequences, an account plan (own prep, SDR-to-AE handoff, AE-to-manager, or QBR prep), a deck, or call prep (they name who they're meeting; builds a brief from Sumble data + previous touchpoints); for a plan or deck, also asks format and an example. For brainstorm, ranks their Sumble territory/org list on ICP fit/score and recent triggers via SearchSignals (champion moves, new hires on tracked tech, hiring/tech trends), so a hot signal surfaces an account even when its score is middling. Builds a cached Sumble profile from GetMyCompanyProfile plus any sales plays / persona profiles. Then researches one account at a time — internal context (Gong/Fireflies/Granola/CRM/marketing), the Sumble overview (tech, teams, people, headcount, hiring signals, ICP fit), and recommended teams + people for land or expansion."
+description: "Guide a seller through researching and prospecting accounts on the Sumble MCP. Asks up front whether they're working a specific account or brainstorming, and which deliverable — outreach sequences, an account plan (own prep, SDR-to-AE handoff, AE-to-manager, or QBR prep), a deck, or call prep (they name who they're meeting; builds a brief from Sumble data + previous touchpoints). Account plans, research briefs and call prep are ALWAYS delivered as the branded interactive HTML brief built from assets/intelligence-brief-template.html - signal cards, play filter pills and contact fan-outs - never bespoke HTML; a set of companies gets a ranked brief plus a full deep-dive brief per account chosen. For brainstorm, ranks their Sumble territory/org list on ICP fit/score and recent triggers via SearchSignals (champion moves, new hires on tracked tech, hiring/tech trends), so a hot signal surfaces an account even when its score is middling. Builds a cached Sumble profile from GetMyCompanyProfile plus any sales plays / persona profiles. Then researches one account at a time — internal context (Gong/Fireflies/Granola/CRM/marketing), the Sumble overview (tech, teams, people, headcount, hiring signals, ICP fit), and recommended teams + people for land or expansion."
 ---
 
 # Account Research & Prospecting
@@ -25,8 +25,11 @@ so the whole skill isn't loaded at once:
   branding) when no example is supplied (Step 5d). If a "powered by Sumble" mark is
   added, it follows the official guide — defer to the `sumble-brand-guidelines` skill
   if installed; the official Sumble logo ships in `assets/sumble-eyes-logo-512.png`.
-- `references/interactive-brief.md` — building the interactive HTML brief format card by
-  card, when chosen as the delivery medium (Step 1 / Step 5d); template + assets in `assets/`.
+- `references/interactive-brief.md` — building the interactive HTML brief card by card;
+  template + assets in `assets/`. **This is the DEFAULT medium for account research
+  deliverables (account plan, call prep, research report) — always fill
+  `assets/intelligence-brief-template.html`, never hand-write bespoke HTML.** Only use a
+  different medium when the user explicitly asks for one (Step 1 / Step 5d).
 - `references/writing-rules.md` — keep every line tight and non-AI-sounding; applies to all
   copy the skill emits (Step 5d).
 
@@ -43,6 +46,11 @@ pretending to run.
   blocking step.
 - **Narrate.** One line before each tool call (what + why), one line after (the takeaway).
 - **One account at a time.** If they pick several, do Step 5 for each in turn.
+- **Already have the research? Skip to Step 5d.** If the user hands you finished research
+  (notes, a prior brief, a pasted dump), don't re-run Steps 2–5c and don't re-spend credits.
+  Read what they gave you, confirm the account and the play(s) you'll map cards to — offer a
+  mapping rather than asking cold — and go straight to producing the deliverable. Only go
+  back for a query if a specific fact you need is genuinely missing.
 - **Internal context outranks external data** — collect it before enriching.
 - **Be credit-aware.** Narrow cheaply, then spend on winners. Flag high-cost steps
   (`GetIntelligenceBrief` 50 cr, email reveal 10 cr, phone reveal 80 cr) first, and
@@ -73,15 +81,20 @@ After the intro, ask two things and wait:
    If they pick an **account plan** or a **deck**, also ask two follow-ups (for **your
    own prep to formulate a strategy**, keep these light — there's no team convention to
    match, so default to a clean working doc unless they say otherwise):
-   - **Format / medium** they want it delivered in (Google Doc, Slides, Notion, PDF,
-     a CRM field, Markdown, or an **interactive HTML brief** — a self-contained webpage
-     where each signal is a clickable card that fans out into the play, the call, what
-     to test, who to reach, and their reporting line with a 1–10 Sumble confidence
-     score; build it per `references/interactive-brief.md`), and
+   - **Format / medium.** The **default is the interactive HTML brief** — a self-contained
+     webpage where each signal is a clickable card that fans out into the play, the call,
+     what to test, who to reach, and their reporting line with a 1–10 Sumble confidence
+     score. Say that's what you'll build (per `references/interactive-brief.md`, filling
+     `assets/intelligence-brief-template.html`) and only switch to another medium (Google
+     Doc, Slides, Notion, PDF, a CRM field, Markdown) if they ask for one. **Never
+     hand-write bespoke HTML for an account deliverable** — consistency across accounts and
+     reps is the point, and the template carries signal cards, play filter pills and
+     contact fan-outs for free.
    - whether they have an **example** to match — paste it or point you at one, so the
-     structure, length, and tone match what their team already expects. **If they have
-     no example, say you'll style it in their own company's branding** — and ask if they
-     have a deck template / brand colors / logo to match (`references/branding.md`).
+     structure, length, and tone match what their team already expects. An example
+     overrides the default medium. **No example → the interactive brief template, in
+     Sumble branding** (`references/branding.md` applies to a *deck presented to the
+     prospect*, not to an account plan or research brief the seller reads).
 
 Hold the chosen output — the research (Steps 2–5c) is the same regardless; it only
 changes the deliverable you produce in Step 5d.
@@ -157,12 +170,26 @@ nothing matches**):
   filter to trim cost on a huge list). Use `GetOrganizationSignals` only when
   you're already down to a single org id.
 - Give each pick a one-line **why it's compelling for them** — a sales play, a tech
-  match, or a specific recent signal ("new VP Data started May 2026", "Databricks
-  adoption signal last month") — not a bare score.
+  match, or a specific recent signal ("new VP Data started May 2026", "first mention of a
+  new data platform last month") — not a bare score.
 
 Show a short ranked table (**account · fit · why-now signal (date) · URL**), marking
 which accounts are riding **fit**, a **recent signal**, or both, and ask **which to
 research**. Several picks → Step 5 one at a time.
+
+**Deliverables for a SET of accounts — ranked brief, then deep dives.** When the ask covers
+several companies, produce **both**, each on `assets/intelligence-brief-template.html`:
+
+1. **A ranking brief** across the set — one `.signal-card` per account, ordered
+   strongest-first, `sig-num` = the rank. The card's Signal box carries the fit + why-now
+   evidence, the badge is the play it feeds, and the buying group is that account's entry
+   point. Use it to agree the shortlist.
+2. **A full single-account brief per account they pick** — the normal Step 5 output, one
+   signal card per signal, its own hero and buying group.
+
+Confirm the shortlist before running the deep dives; each one costs real credits. Never
+merge several accounts into one deep-dive file, and never hand back only the ranking when
+they asked for research.
 
 ## Step 5 — Research one account (repeat per account)
 
@@ -283,9 +310,12 @@ generated draft.
   ICP fit, why now (signals), target team(s) + entry point, the **Step 5c buying group**
   (buyer / champion / multithread) rendered with its confidence-scored org map and both
   links per person, current state (pipeline / existing business), and recommended next
-  steps. **If they gave an example, match its structure,
-  length, and tone.** If they didn't, structure it cleanly in **the seller's own company
-  branding (`references/branding.md`)** — their colors, type, logo.
+  steps. **If they gave an example, match its structure, length, and tone.** If they
+  didn't, build it as the **interactive HTML brief** — fill
+  `assets/intelligence-brief-template.html` per `references/interactive-brief.md`. Prose
+  sections map onto signal cards: one finding → one card → one play. Do not hand-write
+  bespoke HTML, and do not restyle it into the seller's branding — this is an internal
+  research artifact the seller reads, so it stays Sumble-branded.
 - **Deck:** a slide outline first, then full slide content, in the **format/medium from
   Step 1**. Typical arc: who they are + why now → what we see in their
   stack / teams / hiring → the problem we solve for the target team → proof (reference
