@@ -39,24 +39,3 @@ port with `python app.py 9001` or `PORT=9001 python app.py`.
 
 `score.csv` is regenerated from `data.csv` + the weights on startup and on Save
 (it's git-ignored here).
-
-## Deploy your own
-
-This folder is a self-contained Cloud Run app. From here:
-
-```bash
-gcloud run deploy sumble-account-scoring-demo \
-  --source . --region us-west1 --allow-unauthenticated --memory 1Gi
-```
-
-The `Dockerfile` is trivial (stdlib only); the app reads `$PORT` and binds
-`$HOST=0.0.0.0` in the container. `score.csv` is regenerated in the container at
-startup, so only `data.csv` + the weights JSON need to ship.
-
-## Build your own
-
-This is just example output. To build a score against *your* ICP and *your*
-accounts, install the [`account-scoring`](../../skills/sumble-account-scoring)
-skill and run it in your coding agent. The method is written up in the
-[articles](../../skills/sumble-account-scoring/articles): [Part 1 — the method](../../skills/sumble-account-scoring/articles/01-account-score-should-tell-a-rep-what-to-do.md)
-and [Part 2 — build it](../../skills/sumble-account-scoring/articles/02-build-an-account-score-you-can-prospect-from.md).

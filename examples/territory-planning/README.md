@@ -44,22 +44,3 @@ bash examples/territory-planning/build.sh
 `make_demo.py` is the generator (accounts + scores + reps + ownership +
 activity); tweak `ENTERPRISE_REPS` / `COMMERCIAL_REPS`, the boundary, or the
 `*_weight` tables there to reshape the demo.
-
-## Deploy
-
-The demo ships a `Dockerfile` and reads `$PORT` / `$HOST`, and gates itself with
-HTTP Basic Auth when `BASIC_AUTH_PASS` is set — so it deploys anywhere.
-
-**fly.io** (via the internal `fly-deploy` skill), or **Google Cloud Run**:
-
-```bash
-gcloud run deploy sumble-territory-demo \
-  --source examples/territory-planning \
-  --region us-central1 --allow-unauthenticated --port 8080 \
-  --set-env-vars BASIC_AUTH_USER=demo,BASIC_AUTH_PASS=demo \
-  --project <your-gcp-project>
-```
-
-> The container filesystem is ephemeral — allocations/calibrations made on the
-> live demo reset when the instance recycles (which is fine for a demo: every
-> viewer gets a clean slate). Export `actions.csv` to keep a session's changes.
