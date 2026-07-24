@@ -1,0 +1,273 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-24T06:31:51-07:00",
+  "company": {
+    "name": "Northwind",
+    "url": "northwind.example",
+    "folder_slug": "northwind"
+  },
+  "score_source": {
+    "kind": "custom",
+    "path": "/Users/anthonygoldbloom/code/sumble-skills-public/examples/territory-planning/_raw/score.csv",
+    "note": "Fictitious demo: real public companies + synthetic scores."
+  },
+  "segments": [
+    {
+      "key": "commercial",
+      "label": "Commercial",
+      "order": 1,
+      "default_capacity": 150
+    },
+    {
+      "key": "enterprise",
+      "label": "Enterprise",
+      "order": 2,
+      "default_capacity": 50
+    }
+  ],
+  "boundary": {
+    "metric": "jf_people:Sales",
+    "column": "sales_people",
+    "label": "Sales headcount",
+    "thresholds": [
+      {
+        "segment": "enterprise",
+        "min": 500.0
+      }
+    ]
+  },
+  "reps": [
+    {
+      "name": "Avery Brooks",
+      "email": "avery.brooks@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Chen Wei",
+      "email": "chen.wei@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Fatima Khan",
+      "email": "fatima.khan@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Marcus Bell",
+      "email": "marcus.bell@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Sofia Romano",
+      "email": "sofia.romano@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Dev Ramesh",
+      "email": "dev.ramesh@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Grace Okafor",
+      "email": "grace.okafor@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Liam Novak",
+      "email": "liam.novak@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Yuki Tanaka",
+      "email": "yuki.tanaka@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Rosa Alvarez",
+      "email": "rosa.alvarez@northwind.example",
+      "segment": "enterprise",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 50
+    },
+    {
+      "name": "Alex Rivera",
+      "email": "alex.rivera@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Jordan Lee",
+      "email": "jordan.lee@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Sam Patel",
+      "email": "sam.patel@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Priya Nair",
+      "email": "priya.nair@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Diego Castro",
+      "email": "diego.castro@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Maya Cohen",
+      "email": "maya.cohen@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Noah Schmidt",
+      "email": "noah.schmidt@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Aisha Bello",
+      "email": "aisha.bello@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Ravi Menon",
+      "email": "ravi.menon@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    },
+    {
+      "name": "Elena Petrova",
+      "email": "elena.petrova@northwind.example",
+      "segment": "commercial",
+      "is_rep": true,
+      "capacity": null,
+      "in_balance": true,
+      "effective_capacity": 150
+    }
+  ],
+  "activity": {
+    "window_days": 90,
+    "sources": [
+      "google_calendar"
+    ],
+    "company_domain": "northwind.example",
+    "freemail_excludes": [
+      "163.com",
+      "aol.com",
+      "duck.com",
+      "example.com",
+      "fastmail.com",
+      "gmail.com",
+      "gmx.com",
+      "gmx.de",
+      "googlemail.com",
+      "hey.com",
+      "hotmail.com",
+      "icloud.com",
+      "live.com",
+      "mac.com",
+      "mail.com",
+      "me.com",
+      "msn.com",
+      "outlook.com",
+      "pm.me",
+      "proton.me",
+      "protonmail.com",
+      "qq.com",
+      "yahoo.co.uk",
+      "yahoo.com",
+      "yandex.com",
+      "ymail.com",
+      "zoho.com"
+    ]
+  },
+  "balance": {
+    "include_categories": [
+      "allocated",
+      "unallocated"
+    ],
+    "cv_balanced": 0.15,
+    "cv_uneven": 0.35
+  },
+  "move_policy": {
+    "cv_stop": 0.1,
+    "max_move_frac": 0.15,
+    "whitespace_top_n": 0
+  },
+  "strong_cutoff": 500,
+  "tier_decile_weight": 2,
+  "territory_csv": "territory.csv"
+}
