@@ -62,25 +62,57 @@ Order strongest-first; each card maps one Step 5b signal to one play.
 
 ## Contacts + the reporting fan-out
 
+**Freshness gate first (SKILL.md Step 5c).** Only include people *currently at the
+company*. Verify each name (web / current LinkedIn role) before it goes on a card.
+Departed → drop (don't list, don't anchor a fan-out, don't reveal). Active but with a
+stale Sumble record (wrong title / mislabeled / 0 reports) → keep, but show the
+**verified current title** (not the Sumble one) and note the record is stale. Same for
+fan-out reports: a departed report comes off the line.
+
 Per card, surface the Step 5c people (economic buyer, champion/user, multithread — 2–3).
-Each is a `.contact-row`: avatar initials, name → LinkedIn, title, `location ·
-why-this-person` (tied to the play's persona). Then a `.fan` block per contact — people
-above (`▲`) and below (`▼`):
+Each is a `.contact-row`: avatar initials, name, then **both a LinkedIn link and a Sumble
+people-page link** (`.plinks` → `LinkedIn · Sumble`), title, and `location · why-this-person`
+(tied to the play's persona). Then a `.fan` block per contact — their **direct reports**
+(who rolls up to them, `▼`), each row carrying the **real Sumble 1–10 confidence** and its
+own LinkedIn + Sumble links.
 
-1. `FindMatchAndEnrichPeople` with **`related_people`**, once per contact (1 cr per
-   related person). Returns each person's direction + LinkedIn/Sumble URLs.
-2. **Score** (`.fan-rank`) = Sumble's match/relatedness confidence the person sits in that
-   line. Normalize the 0–1 score like the web app: `max(0.1, ceil(score*100)/10)` (`0.56
-   → 5.6`, `0.65 → 6.5`).
-3. **No numeric score → don't fabricate:** render `fan-rank na` with `—`, keep the people,
-   and note in `.orgtree-note` that the number wasn't available.
-4. ~2 above + ~3 below, strongest first. No related people → `.fan-none` note; never pad
-   with invented reports.
+**One call gets the scores + both links.** `FindMatchAndEnrichPeople` in **match mode**,
+batching all a card's contacts by `person_id`/`linkedin_url`, with the reporting line and
+its confidence requested *inside* `related_people` (the inner `attributes` is what returns
+names/titles/links/scores — omit it and you get bare ids with no score):
 
-**Load-bearing honesty:** the fan-out is an *inferred* map from shared signals, not a
-confirmed org chart, and the score is confidence-the-person-is-in-that-line, **not**
-confidence-the-play-lands. Keep the `.orgtree-note` disclaimer. "Above" is often sparse
-for senior contacts — show what's there.
+```
+attributes: ["name","job_title","job_level","linkedin_url"]
+related_people: { direction: ["direct_reports"],
+                  attributes: ["name","job_title","job_level","linkedin_url","confidence"] }
+```
+
+1. **Sumble link** = each person's free `sumble_url` (`https://sumble.com/l/person/…`),
+   returned on the contact **and** every related person. Put it next to the LinkedIn link on
+   every row — anchor contacts and fan rows alike. That Sumble page is where the user sees
+   the full confidence-scored roll-up.
+2. **Score** (`.fan-rank`) = each related person's `confidence.score` (a 0–1 float at the
+   **top level** of the report object, *not* under `attributes`). Convert to the web app's
+   1–10 exactly: `ceil(score*100)/10` (`0.3865 → 3.9`, `0.51 → 5.1`). These are the same
+   numbers on the person's Sumble page. Rank each contact's `direct_reports` by score, show
+   the **top ~5**.
+3. **Direction.** Use `direct_reports` (`▼`). The `managers` (up) direction is near-empty
+   for senior contacts (a CXO/SVP rarely has an inferred manager) — don't render an empty
+   `▲` fan; express the path-to-buyer in prose instead.
+4. **Noisy / off-target line → don't show a misleading fan.** Common for CXOs (e.g. a CISO
+   whose top "reports" are physical-security or strategy people, or a CDAO whose Sumble
+   record is stale with 0 reports). Render a `.fan-none` note ("reach them through the
+   champion") instead of padding. Never invent reports.
+5. The response is large and usually spills to a file — read it back with `jq`
+   (`.people[].related_people.direct_reports | sort_by(-.confidence.score)`), not inline.
+
+Apply this to **every** recommended contact — the economic buyer and the champion both get
+the dual links and their scored reporting line, exactly as on the Sumble people page.
+
+**Load-bearing honesty:** the fan-out is an *inferred* map from shared signals (tech,
+function, team, title, location) — the same figure shown on each person's Sumble page — a
+suggested map, **not** a confirmed org chart, and the score is confidence-the-person-sits-in-
+that-line, **not** confidence-the-play-lands. Keep the `.orgtree-note` disclaimer.
 
 ## Deliver
 

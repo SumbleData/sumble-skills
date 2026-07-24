@@ -211,6 +211,28 @@ signal + cleanest entry; expansion → team adjacent to the existing footprint).
 manager), and **multithread** contacts; use `FindMatchAndEnrichPeople` +
 `related_people` to map buyers ↔ implementers. Keep to 2–3.
 
+**Freshness gate (required before any name reaches the deliverable).** Sumble
+people records go stale — departed execs still listed as current, and current
+execs mislabeled (wrong title, missing reports). A customer-facing brief with a
+"contact" who left is a trust-killer. So verify **every named person** — especially
+economic buyer / champion and anyone in a reporting fan-out — is *currently at the
+company* before including them (quick web / LinkedIn check on the person's current
+role; the person's own current LinkedIn is the tiebreaker over the Sumble title).
+Two outcomes, handled differently:
+- **Departed** (no longer at the company) → **drop them.** Don't list them, don't
+  anchor a fan-out on them, don't reveal contact info. If they were the obvious
+  buyer, find their replacement instead.
+- **Active but stale Sumble record** (right person, wrong/old title, or 0 reports
+  like a mislabeled "Board Member") → **keep them** — never drop an active buyer over
+  a messy record — but **use the verified current title**, not the Sumble one, and
+  add a one-line note that the Sumble record is stale. If the Sumble people page is
+  actively misleading (wrong title), you may keep the link (it's still the right
+  person) but the note must explain it; if the record is so wrong the link would
+  confuse, show LinkedIn only and mark Sumble n/a.
+
+Apply the same test to fan-out reports: a departed report is dropped from the line;
+the score/roll-up you show should reflect people actually still there.
+
 **5d. Produce the chosen deliverable** (from Step 1) — all built from the same
 research, grounded in internal context first, then a specific external signal, then
 the matching sales play / reference customer.
