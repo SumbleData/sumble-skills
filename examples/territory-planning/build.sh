@@ -21,7 +21,7 @@ cp "$TPL/app.py"                  "$DEMO/app.py"
 cp "$TPL/_build/territory_lib.py" "$DEMO/territory_lib.py"
 cp "$TPL/README.md"               "$DEMO/APP_README.md"
 cp "$TPL/Dockerfile"              "$DEMO/Dockerfile"
-cp "$TPL/.dockerignore"           "$DEMO/.dockerignore"
+# .dockerignore is committed in this demo dir (the skill template ships none).
 for f in app.js style.css index.html logo.svg favicon.svg; do
   cp "$TPL/static/$f" "$DEMO/static/$f"
 done

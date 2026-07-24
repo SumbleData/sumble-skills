@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Territory planning</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div class="demo-banner" style="background:#FEF3C7;color:#78350F;border-bottom:1px solid #F59E0B;padding:8px 20px;font-size:13px;text-align:center;line-height:1.4;">
+      <strong>Demo &mdash; fictitious data.</strong> Company (Northwind), reps, and activity are invented; account names are real public companies with synthetic demo scores. Nothing here reflects a real sales team.
+    </div>
+
+    <header class="topbar">
+      <a href="https://sumble.com" class="brand" target="_blank" rel="noopener">
+        <img class="brand-icon" src="https://sumble.com/logo512.png" alt="" />
+        <img class="brand-wordmark" src="https://sumble.com/img/sumble-wordmark.svg" alt="Sumble" />
+      </a>
+      <div class="topbar-meta">
+        <span id="customer-name"></span>
+        <span class="dot">·</span>
+        <span id="row-summary"></span>
+        <div class="btn-stack">
+          <button id="export-actions" class="btn-download"
+                  title="Download every accepted / manual owner change as a CRM-ready sheet">
+            Export approved moves</button>
+          <button id="export-sheet" class="btn-download btn-download-secondary"
+                  title="Download the full territory sheet, including every flag and activity count">
+            Download territory.csv</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="terr-layout">
+      <!-- ================= Calibrate sidebar ================= -->
+      <aside class="calibrate-panel" id="calibrate-panel">
+        <div class="panel-header">
+          <h2>Calibrate</h2>
+        </div>
+        <p class="panel-sub">
+          The two judgement calls in a territory plan: where the segment line
+          sits, and how many accounts each rep should carry. They preview live as
+          you type; leaving a field (or pressing Enter) re-runs the balancer.
+        </p>
+        <div id="calibrate-controls" class="calibrate-controls"></div>
+        <p id="calibrate-status" class="calibrate-status"></p>
+
+        <div class="cal-box strong-box">
+          <h4 class="cal-box-title">Strong-account cutoff</h4>
+          <p class="cal-box-sub">
+            An account counts as "strong" for the attention flags if it's in the
+            top N by ICP score. Updates the flags live — no re-suggest needed.
+          </p>
+          <label class="cal-field">
+            <span>Top N by score</span>
+            <input type="number" min="1" step="1" id="strong-cutoff" class="terr-input" />
+          </label>
+        </div>
+
+        <div class="calibrate-actions">
+          <button id="calibrate-reset-fields" class="btn-link" type="button">Reset fields</button>
+        </div>
+      </aside>
+
+      <section class="terr-main">
+        <nav class="tabs" role="tablist">
+          <button class="tab active" data-tab="overview" role="tab">Overview</button>
+          <button class="tab" data-tab="accounts" role="tab">Accounts</button>
+          <button class="tab" data-tab="export" role="tab">Export</button>
+        </nav>
+        <p id="tab-description" class="tab-description"></p>
+
+      <!-- ================= Overview ================= -->
+      <section id="view-overview" class="view">
+        <div id="overview-segments"></div>
+        <h3 class="terr-h3">Accounts needing attention</h3>
+        <p class="eval-diag-sub">Click any card to open that set in the Accounts tab.</p>
+        <div id="highlight-cards" class="highlight-cards"></div>
+      </section>
+
+      <!-- ================= Accounts ================= -->
+      <section id="view-accounts" class="view hidden">
+        <div id="account-filters" class="category-filter"></div>
+        <div class="search-wrap">
+          <input id="search-input" type="search"
+                 placeholder="Search name, domain, owner… (press / to focus)" autocomplete="off" />
+          <select id="rep-filter" class="terr-select"><option value="">All reps</option></select>
+          <select id="segment-filter" class="terr-select"><option value="">All segments</option></select>
+        </div>
+        <div class="table-wrap">
+          <table id="accounts-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button id="page-prev" class="btn-page" type="button">‹ Prev</button>
+          <span id="page-info" class="page-info"></span>
+          <button id="page-next" class="btn-page" type="button">Next ›</button>
+        </div>
+      </section>
+
+      <!-- ================= Export ================= -->
+      <section id="view-export" class="view hidden">
+        <div id="export-summary" class="export-summary"></div>
+        <div class="btn-stack btn-stack-row">
+          <button id="export-actions-2" class="btn-download">Download actions.csv</button>
+          <button id="export-sheet-2" class="btn-download btn-download-secondary">Download territory.csv</button>
+        </div>
+        <h3 class="terr-h3">Approved changes</h3>
+        <div class="table-wrap">
+          <table id="export-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+      </section>
+    </main>
+
+    <aside id="detail-panel" class="detail-panel hidden">
+      <div class="breakdown-header">
+        <div>
+          <h2 id="detail-name"></h2>
+          <p id="detail-meta"></p>
+        </div>
+        <button id="detail-close" class="btn-icon" aria-label="Close">×</button>
+      </div>
+      <div id="detail-body"></div>
+    </aside>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
