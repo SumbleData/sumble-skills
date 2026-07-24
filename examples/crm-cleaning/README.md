@@ -64,14 +64,3 @@ Then **Export actions.csv** for the change list (`merge` / `delete` /
 | `static/` | The UI. |
 
 `decisions.json` and `actions.csv` are written as you review (gitignored).
-
-## Build this against your own CRM
-
-Install the skill and run it — the interview takes a few minutes:
-
-```bash
-npx skills add SumbleData/sumble-skills-public --skill sumble-crm-cleaning
-```
-
-The method is written up in
-[Clean your CRM against an org graph](../../skills/sumble-crm-cleaning/articles/01-clean-your-crm-against-the-org-graph.md).

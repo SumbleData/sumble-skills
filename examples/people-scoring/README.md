@@ -46,29 +46,6 @@ Stock Python 3.10+, stdlib only — no `pip install`.
 The method is written up in
 [the people-scoring article](../../skills/sumble-people-scoring/articles/01-people-scoring-use-cases.md).
 
-## Deploy
-
-This folder is a self-contained Cloud Run app (stdlib-only `Dockerfile`; the app
-reads `$PORT` and binds `$HOST=0.0.0.0`). `score.csv` is regenerated in the
-container at startup, so only `data.csv` + `config.json` need to ship. Deploy
-into the same GCP project that hosts the account demo (where `sumble.com` is
-verified for domain mapping):
-
-```bash
-cd sumble-skills/examples/people-scoring
-
-# 1. Deploy the service.
-gcloud run deploy sumble-people-scoring-demo \
-  --source . --region us-west1 --allow-unauthenticated --memory 1Gi
-
-# 2. Map the custom domain (one-time), then add the records gcloud prints
-#    to the sumble.com DNS zone.
-gcloud beta run domain-mappings create \
-  --service sumble-people-scoring-demo \
-  --domain people-scoring-demo.sumble.com \
-  --region us-west1
-```
-
 ## Security note
 
 The local app binds 127.0.0.1 and has no auth. `data.csv` is real
