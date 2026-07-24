@@ -78,6 +78,18 @@ a.lnk:hover{border-color:var(--green-700)}
 .detail-col p{font-size:12.5px;color:var(--slate-600);line-height:1.55}
 .detail-col p strong{color:var(--slate-900);font-weight:600}
 .call-line{font-style:italic;color:var(--green-800);font-weight:500}
+/* Buying-group header: the real Sumble team that owns the signal + the path to the buyer.
+   Team must be a navigable team (matched_features slug), never a noisy auto-cluster; no curated
+   team -> name the function and link the org people page. See references/interactive-brief.md. */
+.buygroup{margin-top:16px;margin-bottom:10px;padding:11px 13px;background:var(--slate-50);border:1px solid var(--slate-200);border-radius:8px}
+.bg-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bg-lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--green-700);font-weight:500}
+.bg-team{font-family:var(--font-display);font-size:13.5px;font-weight:600;color:var(--slate-900)}
+.bg-roster{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--green-700);text-decoration:none;border-bottom:1px solid rgba(21,128,61,.32);white-space:nowrap}
+.bg-path{margin-top:7px;font-size:11.5px;color:var(--slate-600)}
+.bg-path .k{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate-400);margin-right:7px}
+.contact-role{flex-shrink:0;align-self:flex-start;font-family:var(--font-mono);font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;padding:3px 7px;border-radius:5px;background:var(--green-50);color:var(--green-800);border:1px solid var(--green-200);white-space:nowrap}
+.contact-role.multi{background:var(--slate-100);color:var(--slate-600);border-color:var(--slate-200)}
 .contacts-label{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-400);margin-bottom:8px}
 .contact-row{display:flex;align-items:flex-start;gap:11px;padding:10px 12px;background:var(--slate-50);border:1px solid var(--slate-100);border-radius:8px;margin-bottom:6px;transition:border-color .12s}
 .contact-row:last-child{margin-bottom:0}
@@ -198,16 +210,27 @@ a.lnk:hover{border-color:var(--green-700)}
         <div class="detail-col"><div class="detail-col-label">The call</div><p class="call-line">"{{Opening line — seller's voice, no Sumble data vocabulary}}"</p></div>
         <div class="detail-col"><div class="detail-col-label">What to test</div><p>{{Discovery question(s); <strong>bold</strong> the one key qualifier.}}</p></div>
       </div>
+      <!-- Buying-group header: the REAL Sumble team that owns this signal + the path to the buyer.
+           Team must be a navigable team (a matched_features team slug), never a noisy auto-cluster.
+           No curated team -> name the function and point the roster at the org people page. -->
+      <div class="buygroup">
+        <div class="bg-head">
+          <span class="bg-lbl">Buying group</span>
+          <span class="bg-team">{{Team name}}</span>
+          <a class="bg-roster" href="https://sumble.com/orgs/{{ORG_SLUG}}/teams/{{TEAM_SLUG}}/people">See who's on this team →</a>
+        </div>
+        <div class="bg-path"><span class="k">Path in</span>{{Champion name}} (champion) → {{Buyer name}} (economic buyer)</div>
+      </div>
       <div class="contacts-label">Contacts</div>
-      <!-- Every contact carries BOTH links: LinkedIn + the API's sumble_url
-           (https://sumble.com/l/person/...). The Sumble page is where the reporting-line
-           confidence scores live. Applies to economic buyer, champion, and multithread alike. -->
+      <!-- Every contact carries BOTH links (LinkedIn + the API's sumble_url — the Sumble page is where the
+           reporting-line confidence scores live) AND a role chip: "Economic buyer" / "Champion" (green) or
+           "Multithread" (class="contact-role multi", slate). Applies to every contact on the card. -->
       <div class="contact-row"><div class="contact-av">{{IN}}</div><div class="contact-info">
         <div class="contact-name">{{Full Name}}<span class="plinks"><a href="{{LINKEDIN_URL}}">LinkedIn</a><span class="sep">·</span><a href="{{SUMBLE_PERSON_URL}}">Sumble</a></span></div>
         <div class="contact-title">{{Title}}</div>
         <div class="contact-loc">{{Location · why this person, per the play's persona}}</div>
-      </div></div>
-      <!-- 1-2 more contact-row blocks: economic buyer, champion/user, multithread -->
+      </div><span class="contact-role">{{Economic buyer / Champion}}</span></div>
+      <!-- 1-2 more contact-row blocks; use <span class="contact-role multi">Multithread</span> for the slate chip -->
       <!-- Reporting-context fan-out: ONE .fan block per contact on this card — each contact is its own anchor.
            Rows are the contact's DIRECT REPORTS (▼) from FindMatchAndEnrichPeople match mode with
            related_people:{direction:["direct_reports"], attributes:[...,"confidence"]} — batch all a card's

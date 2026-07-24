@@ -205,11 +205,14 @@ and who else sits near the deal; check `SearchSignals` with their `person_ids` f
 recent moves/promotions.
 
 **5c. Recommend.** **Where to focus** — the target team (first land → strongest
-signal + cleanest entry; expansion → team adjacent to the existing footprint).
+signal + cleanest entry; expansion → team adjacent to the existing footprint). Prefer a
+**real, navigable Sumble team** (grab its `slug` from the contacts' `matched_features`, so
+the deliverable can link its roster) over a bare description.
 **Why now** — the 1–2 signals. **Who to get to** — name the **economic buyer**
 (leader over the team), **champion/user** (hands-on lead or the signal job's hiring
 manager), and **multithread** contacts; use `FindMatchAndEnrichPeople` +
-`related_people` to map buyers ↔ implementers. Keep to 2–3.
+`related_people` to map buyers ↔ implementers. Keep to 2–3. In the deliverable these render
+as a labelled buying group — team + path to the buyer + role-tagged contacts, not a bare list.
 
 **Freshness gate (required before any name reaches the deliverable).** Sumble
 people records go stale — departed execs still listed as current, and current

@@ -12,6 +12,23 @@ prospect-facing, so it skips `references/branding.md`. The template already carr
 brand: one emerald accent (`#16a34a`) on slate/white, the hosted Sumble mark, Inter.
 Don't recolor it to the prospect or the seller.
 
+**Brand-font upgrade (Sumble-internal runs only).** The public template ships **Inter**
+because the NEXT brand faces (NextPoster/NextBook) are proprietary and this repo is public —
+never commit the NEXT font files here. But if you're running inside Sumble and the NEXT
+woff2 files are available locally (they ship in the private `elastic-skill` under
+`assets/brand/`, or the `sumble-brand-guidelines` skill), embed them into the **output**
+`.html` for a full brand match: base64-encode each woff2, add two `@font-face` blocks, and
+point the vars at them —
+
+```css
+@font-face{font-family:'NextPoster';src:url(data:font/woff2;base64,<POSTER_B64>) format('woff2');font-weight:300 800;font-display:swap}
+@font-face{font-family:'NextBook';src:url(data:font/woff2;base64,<BOOK_B64>) format('woff2');font-weight:300 800;font-display:swap}
+:root{--font-display:'NextPoster','Inter',system-ui,sans-serif;--font-body:'NextBook','Inter',system-ui,sans-serif;}
+```
+
+The fonts live in the delivered file only, never in the repo. No fonts handy → leave the
+template on Inter; it still renders clean.
+
 ## Map the plays to pills + badges
 
 The pills and badges are the user's **sales plays** — already settled in the Step 3
@@ -60,7 +77,7 @@ Order strongest-first; each card maps one Step 5b signal to one play.
   sentences, no "**Label:** sentence" bullets.
 - **Sources** — `Sumble · {{ACCOUNT}} profile` link plus any web sources.
 
-## Contacts + the reporting fan-out
+## Buying group + the reporting fan-out
 
 **Freshness gate first (SKILL.md Step 5c).** Only include people *currently at the
 company*. Verify each name (web / current LinkedIn role) before it goes on a card.
@@ -69,12 +86,34 @@ stale Sumble record (wrong title / mislabeled / 0 reports) → keep, but show th
 **verified current title** (not the Sumble one) and note the record is stale. Same for
 fan-out reports: a departed report comes off the line.
 
-Per card, surface the Step 5c people (economic buyer, champion/user, multithread — 2–3).
-Each is a `.contact-row`: avatar initials, name, then **both a LinkedIn link and a Sumble
-people-page link** (`.plinks` → `LinkedIn · Sumble`), title, and `location · why-this-person`
-(tied to the play's persona). Then a `.fan` block per contact — their **direct reports**
-(who rolls up to them, `▼`), each row carrying the **real Sumble 1–10 confidence** and its
-own LinkedIn + Sumble links.
+Every card ends in a **labelled buying group**: the team that owns the signal, the path to
+the buyer, the role-tagged people, then each person's scored reporting line. Don't leave the
+people as a bare list.
+
+**1 · Team header (`.buygroup`).** Anchor the card on a **real, navigable Sumble team** —
+never a noisy auto-cluster ("Manager", "AVP", a generic "Security"). The clean source is the
+team that recurs across your contacts' `FindMatchAndEnrichPeople` `confidence.matched_features`
+with `match_type:"team"` — it carries the team `name` **and `slug`**. Roster link is slug-form,
+not numeric ids: `https://sumble.com/orgs/<org-slug>/teams/<team-slug>/people`, text **"See
+who's on this team →"** (Sumble's inferred, confidence-scored membership, not a confirmed
+roster). **No curated team** — some orgs surface only the generic org-level cluster (its slug
+is just the org name, e.g. `nfl`); don't anchor on that. Name the group by the function you're
+selling into and point the roster at `https://sumble.com/orgs/<org-slug>/people` with text
+**"See who Sumble links to this org →"**, noting it in `.bg-path`.
+
+**2 · Path in (`.bg-path`).** One line naming the entry point and the buyer above it:
+`{{champion}} (champion) → {{economic buyer}} (economic buyer)`. Don't render an empty "above"
+fan for a senior contact whose inferred manager is missing — just name the path here.
+
+**3 · Contacts (`.contact-row`), each with a role chip + both links.** The 2–3 Step 5c people
+— avatar initials, name with **LinkedIn + Sumble** links (`.plinks`), title, `location ·
+why-this-person` (the play's persona) — plus a **`.contact-role` chip**: `Economic buyer` /
+`Champion` (green) or `Multithread` (`class="contact-role multi"`, slate). The role is a
+visible label, not buried in the prose.
+
+**4 · Reporting fan-out (`.fan`)** — a `.fan` block per contact: their **direct reports** (who
+rolls up to them, `▼`), each row carrying the **real Sumble 1–10 confidence** and its own
+LinkedIn + Sumble links.
 
 **One call gets the scores + both links.** `FindMatchAndEnrichPeople` in **match mode**,
 batching all a card's contacts by `person_id`/`linkedin_url`, with the reporting line and
