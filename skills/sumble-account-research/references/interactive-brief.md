@@ -15,10 +15,9 @@ Don't recolor it to the prospect or the seller.
 **Brand-font upgrade (Sumble-internal runs only).** The public template ships **Inter**
 because the NEXT brand faces (NextPoster/NextBook) are proprietary and this repo is public —
 never commit the NEXT font files here. But if you're running inside Sumble and the NEXT
-woff2 files are available locally (they ship in the private `elastic-skill` under
-`assets/brand/`, or the `sumble-brand-guidelines` skill), embed them into the **output**
-`.html` for a full brand match: base64-encode each woff2, add two `@font-face` blocks, and
-point the vars at them —
+woff2 files are available locally (from a Sumble brand-assets source you already have
+installed), embed them into the **output** `.html` for a full brand match: base64-encode
+each woff2, add two `@font-face` blocks, and point the vars at them —
 
 ```css
 @font-face{font-family:'NextPoster';src:url(data:font/woff2;base64,<POSTER_B64>) format('woff2');font-weight:300 800;font-display:swap}
