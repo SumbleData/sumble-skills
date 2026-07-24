@@ -78,6 +78,7 @@ a.lnk:hover{border-color:var(--green-700)}
 .detail-col p{font-size:12.5px;color:var(--slate-600);line-height:1.55}
 .detail-col p strong{color:var(--slate-900);font-weight:600}
 .call-line{font-style:italic;color:var(--green-800);font-weight:500}
+.proof{display:block;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--slate-500);font-style:normal}
 /* Buying-group header: the real Sumble team that owns the signal + the path to the buyer.
    Team must be a navigable team (matched_features slug), never a noisy auto-cluster; no curated
    team -> name the function and link the org people page. See references/interactive-brief.md. */
@@ -203,11 +204,16 @@ a.lnk:hover{border-color:var(--green-700)}
         </div>
       </div>
       <div class="detail-cols">
-        <!-- "The call" = the seller's exact words to the prospect. NEVER use Sumble vocabulary here:
-             no "confirmed-used", no "used/mentioned", no "N postings", no "Sumble", no raw counts.
-             Say what a rep would say. Counts live in the Signal box / Stack tags only.
-             Same for "What to test" — phrase it as the rep's curiosity, not a Sumble metric. -->
-        <div class="detail-col"><div class="detail-col-label">The call</div><p class="call-line">"{{Opening line — seller's voice, no Sumble data vocabulary}}"</p></div>
+        <!-- "The call" = the seller's exact words to the prospect, and it NAMES THE PRODUCT.
+             Open on their situation, land on the specific module (not the bare vendor name) -
+             the product must match this card's play badge. Optional trailing .proof span =
+             one reference customer + concrete outcome (from GetMyCompanyProfile).
+             NEVER use Sumble vocabulary here: no "confirmed-used", no "used/mentioned", no
+             "N postings", no "Sumble", no raw counts - those live in the Signal box / Stack
+             tags only. "What to test" goes back to listening: the rep's curiosity, not a
+             second pitch and not a Sumble metric. -->
+        <div class="detail-col"><div class="detail-col-label">The call</div><p class="call-line">"{{Opening line — their situation, landing on the specific product/module}}"
+          <span class="proof">{{Reference customer &middot; concrete outcome}}</span></p></div>
         <div class="detail-col"><div class="detail-col-label">What to test</div><p>{{Discovery question(s); <strong>bold</strong> the one key qualifier.}}</p></div>
       </div>
       <!-- Buying-group header: the REAL Sumble team that owns this signal + the path to the buyer.
