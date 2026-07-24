@@ -115,6 +115,16 @@ visible label, not buried in the prose.
 rolls up to them, `▼`), each row carrying the **real Sumble 1–10 confidence** and its own
 LinkedIn + Sumble links.
 
+**Every listed contact gets a block — no silent omissions.** For each contact on the card,
+render **either** their own `.fan` (their reporting line) **or** a `.fan-none` note that says
+why there isn't one — *no reports mapped in Sumble*, *shown as a report under {anchor} above
+({score})*, or *reporting line already shown on the {other} card*. Never list a contact and
+leave their line out: if you didn't pull it (you batched only some anchors, or they're a VP
+with no mapped reports), say so and point the rep to reach directly. **Self-check before
+delivering: per card, the count of `.contact-row` blocks must equal the count of
+`.fan` + `.fan-none` blocks.** Don't repeat an identical fan across cards — cross-reference it
+("line shown on card N") instead.
+
 **One call gets the scores + both links.** `FindMatchAndEnrichPeople` in **match mode**,
 batching all a card's contacts by `person_id`/`linkedin_url`, with the reporting line and
 its confidence requested *inside* `related_people` (the inner `attributes` is what returns
