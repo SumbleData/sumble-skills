@@ -208,11 +208,33 @@ recent moves/promotions.
 signal + cleanest entry; expansion → team adjacent to the existing footprint). Prefer a
 **real, navigable Sumble team** (grab its `slug` from the contacts' `matched_features`, so
 the deliverable can link its roster) over a bare description.
-**Why now** — the 1–2 signals. **Who to get to** — name the **economic buyer**
-(leader over the team), **champion/user** (hands-on lead or the signal job's hiring
-manager), and **multithread** contacts; use `FindMatchAndEnrichPeople` +
-`related_people` to map buyers ↔ implementers. Keep to 2–3. In the deliverable these render
-as a labelled buying group — team + path to the buyer + role-tagged contacts, not a bare list.
+**Why now** — the 1–2 signals, plus the tech/hiring evidence (what they run and how
+heavily) the deliverable will cite.
+
+**The buying group (shared output — every deliverable renders this; Step 5d only changes
+the medium).** Name 2–3 people — the **economic buyer** (leader over the team), the
+**champion/user** (hands-on lead or the signal job's hiring manager), and any
+**multithread** contact — and build each the same way, once, here, so every deliverable
+inherits the same well-formed group:
+- **Both links per person.** Every name carries a **LinkedIn** link *and* a **Sumble
+  people-page** link (the `sumble_url` the API returns) — the Sumble page is where the
+  confidence-scored roll-up lives.
+- **Scored reporting line.** Pull it with `FindMatchAndEnrichPeople` in **match mode**,
+  batching the contacts, with `related_people: { direction: ["direct_reports"],
+  attributes: ["name","job_title","job_level","linkedin_url","confidence"] }` — the inner
+  `attributes` is what returns names/links/scores. Each report's `confidence.score` (0–1,
+  at the **top level**) → the web-app **1–10** via `ceil(score*100)/10`; rank by it, show
+  the top ~5. `direct_reports` only — managers are near-empty for senior people.
+- **Path in.** One line: champion → economic buyer.
+- **Every listed person is accounted for.** Each contact gets either their scored line or
+  an explicit note saying why not (no reports mapped / shown under an anchor above / line
+  already shown elsewhere) — never a bare name with a silent gap. Noisy/off-target lines
+  (common for CXOs) become a note, not padding.
+
+This buying group is the canonical output. **Step 5d renders it in whatever medium the
+deliverable is** — a labelled block with role chips + a fan-out in the interactive brief, a
+slide, the attendee org-map in a call-prep doc, or the recipient list + multithread plan of
+an outreach sequence. The medium changes; the group, its scores, and its links don't.
 
 **Freshness gate (required before any name reaches the deliverable).** Sumble
 people records go stale — departed execs still listed as current, and current
@@ -245,8 +267,10 @@ the matching sales play / reference customer.
 hedges and the em-dash-padded filler. It should read like a sharp rep wrote it, not a
 generated draft.
 
-- **Outreach sequences:** a multi-touch sequence for each priority person (≤3) —
-  email plus optional LinkedIn / call steps, each touch a distinct angle (signal-led,
+- **Outreach sequences:** a multi-touch sequence for each priority person (≤3) — **these
+  are the Step 5c buying group** (lead with the economic buyer + champion; use their
+  reporting line to pick multithread targets). Email plus optional LinkedIn / call steps,
+  each touch a distinct angle (signal-led,
   reference-led, value-led). First touch leans on internal context; later touches on
   specific external signals. Human and specific; no "I noticed you're hiring" filler.
   **Match the rep's voice:** if a CRM connector is available (e.g. Salesforce —
@@ -256,22 +280,25 @@ generated draft.
   rules still apply.
 - **Account plan:** a written plan in the **format from Step 1**, pitched to
   the stated audience (your own strategy prep, SDR→AE handoff, AE→manager, or QBR). Cover: account snapshot +
-  ICP fit, why now (signals), target team(s) + entry point, the buying group (buyer /
-  champion / multithread) with the org map, current state (pipeline / existing
-  business), and recommended next steps. **If they gave an example, match its structure,
+  ICP fit, why now (signals), target team(s) + entry point, the **Step 5c buying group**
+  (buyer / champion / multithread) rendered with its confidence-scored org map and both
+  links per person, current state (pipeline / existing business), and recommended next
+  steps. **If they gave an example, match its structure,
   length, and tone.** If they didn't, structure it cleanly in **the seller's own company
   branding (`references/branding.md`)** — their colors, type, logo.
 - **Deck:** a slide outline first, then full slide content, in the **format/medium from
   Step 1**. Typical arc: who they are + why now → what we see in their
   stack / teams / hiring → the problem we solve for the target team → proof (reference
-  customer) → a clear next step. Only slides that earn their place. **If they gave an
+  customer) → the **Step 5c buying group** as a "who to reach" slide (team + path to the
+  buyer + role-tagged contacts) → a clear next step. Only slides that earn their place. **If they gave an
   example, match its template, layout, and tone.** If they didn't, design it in **the
   seller's own company branding (`references/branding.md`)** — their palette, type, and
   logo on the title / closing slide (it's presented to the prospect under the seller's
   name, not Sumble's).
 - **Call prep brief:** a one-page brief they can scan five minutes before the
   meeting. Cover: **the meeting** (type, goal, one-line account state); **attendees,
-  most senior first** — for each: role, tenure, background, reporting line, recent
+  most senior first** — for each: role, tenure, background, their **Step 5c scored
+  reporting line** (who rolls up to them, with the 1–10 confidence + both links), recent
   moves/promotions, and *your history with them* (last touchpoint, what was said,
   open threads); **why now** — the 1–2 freshest signals with dates; **talking
   points + discovery questions** tied to their stack/teams/hiring; **landmines**

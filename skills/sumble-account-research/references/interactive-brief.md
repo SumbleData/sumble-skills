@@ -79,6 +79,13 @@ Order strongest-first; each card maps one Step 5b signal to one play.
 
 ## Buying group + the reporting fan-out
 
+The **buying group is defined in SKILL.md Step 5c** — the contacts, the scored reporting
+lines (`related_people` + `confidence` → 1–10), both links per person, the path in, and the
+"every person accounted for" rule. This section is just its **HTML rendering** (`.buygroup`
+header, role chips, `.fan` blocks, `.plinks`); don't re-derive the data rules here — Step 5c
+is the source of truth, and the same group feeds the deck, call-prep, and outreach
+deliverables too.
+
 **Freshness gate first (SKILL.md Step 5c).** Only include people *currently at the
 company*. Verify each name (web / current LinkedIn role) before it goes on a card.
 Departed → drop (don't list, don't anchor a fan-out, don't reveal). Active but with a
