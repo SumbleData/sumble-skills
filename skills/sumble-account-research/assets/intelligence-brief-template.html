@@ -78,6 +78,18 @@ a.lnk:hover{border-color:var(--green-700)}
 .detail-col p{font-size:12.5px;color:var(--slate-600);line-height:1.55}
 .detail-col p strong{color:var(--slate-900);font-weight:600}
 .call-line{font-style:italic;color:var(--green-800);font-weight:500}
+/* Buying-group header: the real Sumble team that owns the signal + the path to the buyer.
+   Team must be a navigable team (matched_features slug), never a noisy auto-cluster; no curated
+   team -> name the function and link the org people page. See references/interactive-brief.md. */
+.buygroup{margin-top:16px;margin-bottom:10px;padding:11px 13px;background:var(--slate-50);border:1px solid var(--slate-200);border-radius:8px}
+.bg-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bg-lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--green-700);font-weight:500}
+.bg-team{font-family:var(--font-display);font-size:13.5px;font-weight:600;color:var(--slate-900)}
+.bg-roster{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--green-700);text-decoration:none;border-bottom:1px solid rgba(21,128,61,.32);white-space:nowrap}
+.bg-path{margin-top:7px;font-size:11.5px;color:var(--slate-600)}
+.bg-path .k{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate-400);margin-right:7px}
+.contact-role{flex-shrink:0;align-self:flex-start;font-family:var(--font-mono);font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;padding:3px 7px;border-radius:5px;background:var(--green-50);color:var(--green-800);border:1px solid var(--green-200);white-space:nowrap}
+.contact-role.multi{background:var(--slate-100);color:var(--slate-600);border-color:var(--slate-200)}
 .contacts-label{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-400);margin-bottom:8px}
 .contact-row{display:flex;align-items:flex-start;gap:11px;padding:10px 12px;background:var(--slate-50);border:1px solid var(--slate-100);border-radius:8px;margin-bottom:6px;transition:border-color .12s}
 .contact-row:last-child{margin-bottom:0}
@@ -87,6 +99,13 @@ a.lnk:hover{border-color:var(--green-700)}
 .contact-name{font-size:12.5px;font-weight:600;color:var(--slate-900);margin-bottom:1px}
 .contact-title{font-size:11.5px;color:var(--slate-600);margin-bottom:1px}
 .contact-loc{font-size:11px;color:var(--slate-400)}
+.plinks{font-family:var(--font-mono);font-size:10px;font-weight:500;white-space:nowrap}
+.plinks a{color:var(--slate-500);border-bottom:1px solid var(--slate-200);text-decoration:none}
+.plinks a:hover{color:var(--green-700);border-color:var(--green-700)}
+.plinks .sep{color:var(--slate-300);margin:0 5px}
+.contact-name .plinks{margin-left:7px;font-weight:500}
+.fan-row .plinks{margin-left:auto;padding-left:8px}
+.fan-anchor .plinks{margin-left:auto}
 /* Per-contact reporting-context fan-out. One .fan per surfaced contact; each is its own anchor + above/below,
    each row carrying the Sumble 1-10 match confidence (or .na when the MCP returns no score). */
 .orgtree{margin-top:16px}
@@ -191,35 +210,51 @@ a.lnk:hover{border-color:var(--green-700)}
         <div class="detail-col"><div class="detail-col-label">The call</div><p class="call-line">"{{Opening line — seller's voice, no Sumble data vocabulary}}"</p></div>
         <div class="detail-col"><div class="detail-col-label">What to test</div><p>{{Discovery question(s); <strong>bold</strong> the one key qualifier.}}</p></div>
       </div>
+      <!-- Buying-group header: the REAL Sumble team that owns this signal + the path to the buyer.
+           Team must be a navigable team (a matched_features team slug), never a noisy auto-cluster.
+           No curated team -> name the function and point the roster at the org people page. -->
+      <div class="buygroup">
+        <div class="bg-head">
+          <span class="bg-lbl">Buying group</span>
+          <span class="bg-team">{{Team name}}</span>
+          <a class="bg-roster" href="https://sumble.com/orgs/{{ORG_SLUG}}/teams/{{TEAM_SLUG}}/people">See who's on this team →</a>
+        </div>
+        <div class="bg-path"><span class="k">Path in</span>{{Champion name}} (champion) → {{Buyer name}} (economic buyer)</div>
+      </div>
       <div class="contacts-label">Contacts</div>
+      <!-- Every contact carries BOTH links (LinkedIn + the API's sumble_url — the Sumble page is where the
+           reporting-line confidence scores live) AND a role chip: "Economic buyer" / "Champion" (green) or
+           "Multithread" (class="contact-role multi", slate). Applies to every contact on the card. -->
       <div class="contact-row"><div class="contact-av">{{IN}}</div><div class="contact-info">
-        <div class="contact-name"><a class="lnk" href="{{LINKEDIN_URL}}">{{Full Name}}</a></div>
+        <div class="contact-name">{{Full Name}}<span class="plinks"><a href="{{LINKEDIN_URL}}">LinkedIn</a><span class="sep">·</span><a href="{{SUMBLE_PERSON_URL}}">Sumble</a></span></div>
         <div class="contact-title">{{Title}}</div>
         <div class="contact-loc">{{Location · why this person, per the play's persona}}</div>
-      </div></div>
-      <!-- 1-2 more contact-row blocks: economic buyer, champion/user, multithread -->
+      </div><span class="contact-role">{{Economic buyer / Champion}}</span></div>
+      <!-- 1-2 more contact-row blocks; use <span class="contact-role multi">Multithread</span> for the slate chip -->
       <!-- Reporting-context fan-out: ONE .fan block per contact on this card — each contact is its own anchor.
-           Rows above/below come from FindMatchAndEnrichPeople with related_people (run per contact). The 1-10
-           .fan-rank is the Sumble match/relatedness confidence, normalized max(0.1, ceil(score*100)/10).
-           Inferred line, NOT a confirmed org chart. ~2 above + ~3 below, strongest first.
-           If the MCP returns no numeric score, use class "fan-rank na" with "—" and say so in the note.
-           If a contact has no related people, render a .fan-none note instead of padding. Never fabricate. -->
+           Rows are the contact's DIRECT REPORTS (▼) from FindMatchAndEnrichPeople match mode with
+           related_people:{direction:["direct_reports"], attributes:[...,"confidence"]} — batch all a card's
+           contacts in ONE call. The .fan-rank is the REAL Sumble 1-10: ceil(confidence.score*100)/10
+           (confidence.score is a 0-1 float at the top level of each report). Top ~5 by score. Every row
+           carries LinkedIn + the report's sumble_url — same as the contact rows.
+           Managers (▲/up) are near-empty for senior contacts — don't render an empty "above" fan.
+           Noisy/off-target line (common for CXOs; or a stale record with 0 reports) → .fan-none note, never pad. -->
       <div class="orgtree">
-        <div class="orgtree-label">Reporting context · Sumble confidence 1–10</div>
+        <div class="orgtree-label">Who rolls up to them · Sumble confidence 1–10</div>
         <div class="fan">
-          <div class="fan-anchor"><span class="nm"><a class="lnk" href="{{LINKEDIN_URL}}">{{Contact 1 Name}}</a></span> · <span class="tt">{{Contact 1 Title}}</span></div>
+          <div class="fan-anchor"><span class="nm">{{Contact 1 Name}}</span> · <span class="tt">{{Contact 1 Title}}</span><span class="plinks"><a href="{{LINKEDIN_URL}}">LinkedIn</a><span class="sep">·</span><a href="{{SUMBLE_PERSON_URL}}">Sumble</a></span></div>
           <div class="fan-branch">
-            <div class="fan-row"><span class="fan-dir up">▲</span><span class="fan-rank">{{5.6}}</span><span class="nm"><a class="lnk" href="{{LINKEDIN_URL}}">{{Name}}</a></span> · <span class="tt">{{Title}}</span></div>
-            <div class="fan-row"><span class="fan-dir dn">▼</span><span class="fan-rank">{{6.5}}</span><span class="nm"><a class="lnk" href="{{LINKEDIN_URL}}">{{Name}}</a></span> · <span class="tt">{{Title}}</span></div>
-            <!-- more ▼ below rows -->
+            <div class="fan-row"><span class="fan-dir dn">▼</span><span class="fan-rank">{{6.5}}</span><span class="nm">{{Name}}</span> · <span class="tt">{{Title}}</span><span class="plinks"><a href="{{LINKEDIN_URL}}">LinkedIn</a><span class="sep">·</span><a href="{{SUMBLE_PERSON_URL}}">Sumble</a></span></div>
+            <div class="fan-row"><span class="fan-dir dn">▼</span><span class="fan-rank">{{5.6}}</span><span class="nm">{{Name}}</span> · <span class="tt">{{Title}}</span><span class="plinks"><a href="{{LINKEDIN_URL}}">LinkedIn</a><span class="sep">·</span><a href="{{SUMBLE_PERSON_URL}}">Sumble</a></span></div>
+            <!-- more ▼ rows, top ~5 by score -->
           </div>
         </div>
         <div class="fan">
-          <div class="fan-anchor"><span class="nm"><a class="lnk" href="{{LINKEDIN_URL}}">{{Contact 2 Name}}</a></span> · <span class="tt">{{Contact 2 Title}}</span></div>
-          <div class="fan-none">No related people surfaced in Sumble for this profile — reach directly, or warm-intro via another contact's line.</div>
+          <div class="fan-anchor"><span class="nm">{{Contact 2 Name}}</span> · <span class="tt">{{Contact 2 Title}}</span><span class="plinks"><a href="{{LINKEDIN_URL}}">LinkedIn</a><span class="sep">·</span><a href="{{SUMBLE_PERSON_URL}}">Sumble</a></span></div>
+          <div class="fan-none">Sumble-inferred line is thin/off-target for this profile — reach directly, or warm-intro via the champion's line.</div>
         </div>
         <!-- one .fan block per remaining contact -->
-        <div class="orgtree-note">Inferred reporting lines from shared signals (tech, function, team, title) — a suggested map, not a confirmed org chart. ▲ = leadership above, ▼ = reports/peers below. Score = Sumble's confidence (1–10) that the person sits in that contact's reporting line, not confidence the play will land.</div>
+        <div class="orgtree-note">Inferred reporting lines from shared signals (tech, function, team, title, location) — the same 1–10 shown on each person's Sumble page. A suggested map, not a confirmed org chart. ▼ = who Sumble thinks reports to that contact. Score = confidence the person sits in that line, not confidence the play will land.</div>
       </div>
       <div class="sources">Evidence: <a href="{{SUMBLE_ORG_URL}}">Sumble · {{ACCOUNT}} profile</a>{{ · web sources}}</div>
     </div></div>

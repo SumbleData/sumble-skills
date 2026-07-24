@@ -23,3 +23,26 @@ sharp rep, not a generated draft.
   fragments, and starting with And/But are all fine.
 
 > Write to one person. Use real words. Show, don't tell. Cut the rest.
+
+## Before you deliver — read it aloud (required)
+
+One pass over the whole draft before you ship it. This is what separates a sharp brief
+from a generated one — don't skip it.
+
+- **Spoken lines carry no Sumble vocabulary.** Read every "call" line and every discovery
+  question aloud as if to the prospect. No "used/mentioned", no "N postings", no "Sumble
+  sees", no raw counts — the prospect has never heard of Sumble. Counts and used/mentioned
+  framing live **only** in the Signal box and stack tags (the analyst's voice, for the
+  rep's eyes). Reword every leak.
+- **One move per call line.** If a line lists three things or the em-dash keeps going, cut
+  to the single sharpest clause. "You've got two security orgs — Irving does X, Santiago
+  does Y, Monterrey does Z…" is three lines pretending to be one.
+- **One locale throughout.** Pick US or UK spelling and hold it (no "organisation" next to
+  "optimize").
+- **Run the word swaps** above, then scan for the #1 tell (negative parallelism) and
+  em-dash addiction — a couple of em dashes across the whole brief is fine, twenty is a
+  tell.
+- **Every number and quote traces to a real result** — a `RunSqlQuery`/enrich pass, not a
+  round number you invented; JD language quoted verbatim.
+
+In your final message, say the audit ran and name anything you cut or re-tiered.
